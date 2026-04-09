@@ -88,6 +88,19 @@ export interface BaniniAnalysis {
   summary: string;
 }
 
+export function parseAnalysisResponse(content: string): BaniniAnalysis {
+  // 提取 JSON（先嘗試 code fence，再嘗試裸 JSON）
+  const fenceMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  const jsonMatch = fenceMatch?.[1] ?? content.match(/\{[\s\S]*\}/)?.[0];
+  if (!jsonMatch) throw new Error(`LLM 回應中找不到 JSON: ${content.slice(0, 200)}`);
+
+  try {
+    return JSON.parse(jsonMatch) as BaniniAnalysis;
+  } catch {
+    throw new Error(`LLM 回傳的 JSON 格式錯誤: ${jsonMatch.slice(0, 200)}`);
+  }
+}
+
 export async function analyzePosts(
   posts: { text: string; timestamp: string; isToday: boolean }[],
   llmConfig: { baseUrl: string; apiKey: string; model: string },
@@ -126,15 +139,5 @@ ${formatted}`;
   });
 
   const content = res.choices[0]?.message?.content ?? '';
-
-  // 提取 JSON（先嘗試 code fence，再嘗試裸 JSON）
-  const fenceMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-  const jsonMatch = fenceMatch?.[1] ?? content.match(/\{[\s\S]*\}/)?.[0];
-  if (!jsonMatch) throw new Error(`LLM 回應中找不到 JSON: ${content.slice(0, 200)}`);
-
-  try {
-    return JSON.parse(jsonMatch) as BaniniAnalysis;
-  } catch {
-    throw new Error(`LLM 回傳的 JSON 格式錯誤: ${jsonMatch.slice(0, 200)}`);
-  }
+  return parseAnalysisResponse(content);
 }
