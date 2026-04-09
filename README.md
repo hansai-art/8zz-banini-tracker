@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="banini-tracker banner" width="100%">
+</p>
+
 # banini-tracker
 
 追蹤「反指標女神」巴逆逆（8zz）的 Threads / Facebook 貼文，用 AI 進行反指標分析，推送結果到 Telegram 頻道。
