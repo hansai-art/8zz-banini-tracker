@@ -10,6 +10,41 @@
     </linearGradient>
   </defs>
   <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <!-- K 線圖裝飾（右半邊） -->
+  <g opacity="0.15">
+    <!-- 紅 K（陰線） -->
+    <line x1="780" y1="180" x2="780" y2="460" stroke="#EF4444" stroke-width="2"/>
+    <rect x="768" y="240" width="24" height="160" fill="#EF4444"/>
+    <!-- 綠 K（陽線） -->
+    <line x1="830" y1="200" x2="830" y2="420" stroke="#22C55E" stroke-width="2"/>
+    <rect x="818" y="200" width="24" height="140" fill="#22C55E"/>
+    <!-- 紅 K -->
+    <line x1="880" y1="160" x2="880" y2="440" stroke="#EF4444" stroke-width="2"/>
+    <rect x="868" y="220" width="24" height="180" fill="#EF4444"/>
+    <!-- 綠 K -->
+    <line x1="930" y1="240" x2="930" y2="480" stroke="#22C55E" stroke-width="2"/>
+    <rect x="918" y="240" width="24" height="120" fill="#22C55E"/>
+    <!-- 綠 K -->
+    <line x1="980" y1="180" x2="980" y2="400" stroke="#22C55E" stroke-width="2"/>
+    <rect x="968" y="180" width="24" height="130" fill="#22C55E"/>
+    <!-- 紅 K -->
+    <line x1="1030" y1="200" x2="1030" y2="460" stroke="#EF4444" stroke-width="2"/>
+    <rect x="1018" y="260" width="24" height="160" fill="#EF4444"/>
+    <!-- 綠 K -->
+    <line x1="1080" y1="220" x2="1080" y2="430" stroke="#22C55E" stroke-width="2"/>
+    <rect x="1068" y="220" width="24" height="100" fill="#22C55E"/>
+    <!-- 紅 K -->
+    <line x1="1130" y1="190" x2="1130" y2="470" stroke="#EF4444" stroke-width="2"/>
+    <rect x="1118" y="250" width="24" height="170" fill="#EF4444"/>
+  </g>
+
+  <!-- 反轉箭頭（K 線圖上方，暗示反指標） -->
+  <g opacity="0.25">
+    <path d="M950 130 L970 100 L990 130" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="970" y1="100" x2="970" y2="150" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
   <rect x="120" y="310" width="240" height="4" rx="2" fill="url(#accent)"/>
   <text x="120" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="#F0F6FC">banini-tracker</text>
   <text x="120" y="370" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#8B949E">追蹤反指標女神巴逆逆的社群貼文</text>
