@@ -68,6 +68,13 @@ npm run build            # TypeScript 編譯
 npm run start            # 啟動常駐排程
 ```
 
+### 測試
+
+```bash
+npm test                 # 執行單元測試
+npm run test:coverage    # 顯示內建 coverage 報告
+```
+
 排程時間（台北時間）：
 
 | 排程 | 時間 | 來源 | 篇數 |
