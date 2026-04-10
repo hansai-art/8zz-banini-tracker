@@ -262,7 +262,7 @@ function renderLayout(
     <p class="muted">${escapeHtml(description)}</p>
     <nav>
       <a href="/index.html">首頁</a>
-      <a href="/signals/index.html">訊號 archive</a>
+      <a href="/signals/index.html">訊號彙整</a>
       <a href="/scoreboard/index.html">命中展示</a>
       <a href="/methodology/index.html">方法論</a>
       <a href="/faq/index.html">FAQ</a>
@@ -717,7 +717,7 @@ function renderMethodologyPage(data: ProductSiteData): string {
   ];
   return renderLayout(
     '8zz 反指標方法論｜如何判讀、回測與使用',
-    '整理 8zz Banini Tracker 的訊號判讀流程、回測規則、限制與產品化方向，讓新手也能快速理解這個系統。 ',
+    '整理 8zz Banini Tracker 的訊號判讀流程、回測規則、限制與產品化方向，讓新手也能快速理解這個系統。',
     `<section class="card">
       <h2>方法論流程</h2>
       <ol>
