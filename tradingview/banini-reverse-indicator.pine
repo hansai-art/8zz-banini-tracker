@@ -1,0 +1,117 @@
+//@version=5
+indicator("8zz Banini Reverse Indicator", shorttitle="8zz Reverse", overlay=true, max_labels_count=200, max_lines_count=200)
+
+groupDisplay = "顯示設定"
+lookaheadBars = input.int(20, "訊號延伸 K 棒數", minval=1, maxval=500, group=groupDisplay)
+showZones = input.bool(true, "顯示訊號觀察區", group=groupDisplay)
+showSummary = input.bool(true, "顯示右上角摘要表", group=groupDisplay)
+bullColor = input.color(color.new(color.lime, 0), "反指標偏多顏色", group=groupDisplay)
+bearColor = input.color(color.new(color.red, 0), "反指標偏空顏色", group=groupDisplay)
+neutralColor = input.color(color.new(color.gray, 0), "中性顏色", group=groupDisplay)
+
+defaultSignalTime = timestamp("Asia/Taipei", 2026, 1, 1, 9, 0)
+
+signalDirection(action) =>
+    switch action
+        "她停損 / 賣出（反指標偏多）" => 1
+        "她認錯 / 畢業（反指標偏多）" => 1
+        "她買進 / 加碼（反指標偏空）" => -1
+        "她看多 / 抄底（反指標偏空）" => -1
+        "她被套 / 繼續抱（反指標偏空）" => -1
+        => 0
+
+signalWeight(confidence) =>
+    switch confidence
+        "高" => 3
+        "中" => 2
+        "低" => 1
+        => 0
+
+signalBiasText(direction) =>
+    direction > 0 ? "反指標偏多" : direction < 0 ? "反指標偏空" : "中性觀察"
+
+signalColor(direction) =>
+    direction > 0 ? bullColor : direction < 0 ? bearColor : neutralColor
+
+plotSignal(slotNumber, enabled, signalTime, action, confidence, note) =>
+    direction = signalDirection(action)
+    weight = signalWeight(confidence)
+    biasText = signalBiasText(direction)
+    tint = signalColor(direction)
+    triggered = enabled and time >= signalTime and (na(time[1]) or time[1] < signalTime)
+    barsSince = ta.barssince(triggered)
+    active = enabled and not na(barsSince) and barsSince < lookaheadBars
+    score = active ? direction * weight : 0
+
+    if showZones and active
+        bgcolor(color.new(tint, 88))
+
+    if triggered
+        labelY = direction > 0 ? low : direction < 0 ? high : close
+        labelStyle = direction > 0 ? label.style_label_up : direction < 0 ? label.style_label_down : label.style_label_left
+        noteLine = str.length(note) > 0 ? "\n備註：" + note : ""
+        labelText = "8zz 訊號 " + str.tostring(slotNumber) + "\n" + action + "\n→ " + biasText + "\n信心：" + confidence + noteLine
+        label.new(bar_index, labelY, labelText, xloc=xloc.bar_index, style=labelStyle, color=tint, textcolor=color.white, size=size.small)
+        line.new(bar_index, close, bar_index + lookaheadBars, close, xloc=xloc.bar_index, extend=extend.none, color=color.new(tint, 15), style=line.style_dashed, width=2)
+
+    [triggered, active, score]
+
+groupSignal1 = "訊號 1"
+signal1Enabled = input.bool(false, "啟用", group=groupSignal1)
+signal1Time = input.time(defaultSignalTime, "貼文 / 事件時間", confirm=true, group=groupSignal1)
+signal1Action = input.string("她停損 / 賣出（反指標偏多）", "巴逆逆動作", options=["她停損 / 賣出（反指標偏多）", "她認錯 / 畢業（反指標偏多）", "她買進 / 加碼（反指標偏空）", "她看多 / 抄底（反指標偏空）", "她被套 / 繼續抱（反指標偏空）", "觀望 / 不明"], group=groupSignal1)
+signal1Confidence = input.string("中", "信心強度", options=["高", "中", "低"], group=groupSignal1)
+signal1Note = input.string("", "備註", group=groupSignal1)
+[signal1Triggered, signal1Active, signal1Score] = plotSignal(1, signal1Enabled, signal1Time, signal1Action, signal1Confidence, signal1Note)
+
+groupSignal2 = "訊號 2"
+signal2Enabled = input.bool(false, "啟用", group=groupSignal2)
+signal2Time = input.time(defaultSignalTime, "貼文 / 事件時間", confirm=true, group=groupSignal2)
+signal2Action = input.string("她買進 / 加碼（反指標偏空）", "巴逆逆動作", options=["她停損 / 賣出（反指標偏多）", "她認錯 / 畢業（反指標偏多）", "她買進 / 加碼（反指標偏空）", "她看多 / 抄底（反指標偏空）", "她被套 / 繼續抱（反指標偏空）", "觀望 / 不明"], group=groupSignal2)
+signal2Confidence = input.string("中", "信心強度", options=["高", "中", "低"], group=groupSignal2)
+signal2Note = input.string("", "備註", group=groupSignal2)
+[signal2Triggered, signal2Active, signal2Score] = plotSignal(2, signal2Enabled, signal2Time, signal2Action, signal2Confidence, signal2Note)
+
+groupSignal3 = "訊號 3"
+signal3Enabled = input.bool(false, "啟用", group=groupSignal3)
+signal3Time = input.time(defaultSignalTime, "貼文 / 事件時間", confirm=true, group=groupSignal3)
+signal3Action = input.string("她被套 / 繼續抱（反指標偏空）", "巴逆逆動作", options=["她停損 / 賣出（反指標偏多）", "她認錯 / 畢業（反指標偏多）", "她買進 / 加碼（反指標偏空）", "她看多 / 抄底（反指標偏空）", "她被套 / 繼續抱（反指標偏空）", "觀望 / 不明"], group=groupSignal3)
+signal3Confidence = input.string("中", "信心強度", options=["高", "中", "低"], group=groupSignal3)
+signal3Note = input.string("", "備註", group=groupSignal3)
+[signal3Triggered, signal3Active, signal3Score] = plotSignal(3, signal3Enabled, signal3Time, signal3Action, signal3Confidence, signal3Note)
+
+groupSignal4 = "訊號 4"
+signal4Enabled = input.bool(false, "啟用", group=groupSignal4)
+signal4Time = input.time(defaultSignalTime, "貼文 / 事件時間", confirm=true, group=groupSignal4)
+signal4Action = input.string("她認錯 / 畢業（反指標偏多）", "巴逆逆動作", options=["她停損 / 賣出（反指標偏多）", "她認錯 / 畢業（反指標偏多）", "她買進 / 加碼（反指標偏空）", "她看多 / 抄底（反指標偏空）", "她被套 / 繼續抱（反指標偏空）", "觀望 / 不明"], group=groupSignal4)
+signal4Confidence = input.string("中", "信心強度", options=["高", "中", "低"], group=groupSignal4)
+signal4Note = input.string("", "備註", group=groupSignal4)
+[signal4Triggered, signal4Active, signal4Score] = plotSignal(4, signal4Enabled, signal4Time, signal4Action, signal4Confidence, signal4Note)
+
+groupSignal5 = "訊號 5"
+signal5Enabled = input.bool(false, "啟用", group=groupSignal5)
+signal5Time = input.time(defaultSignalTime, "貼文 / 事件時間", confirm=true, group=groupSignal5)
+signal5Action = input.string("觀望 / 不明", "巴逆逆動作", options=["她停損 / 賣出（反指標偏多）", "她認錯 / 畢業（反指標偏多）", "她買進 / 加碼（反指標偏空）", "她看多 / 抄底（反指標偏空）", "她被套 / 繼續抱（反指標偏空）", "觀望 / 不明"], group=groupSignal5)
+signal5Confidence = input.string("中", "信心強度", options=["高", "中", "低"], group=groupSignal5)
+signal5Note = input.string("", "備註", group=groupSignal5)
+[signal5Triggered, signal5Active, signal5Score] = plotSignal(5, signal5Enabled, signal5Time, signal5Action, signal5Confidence, signal5Note)
+
+totalScore = signal1Score + signal2Score + signal3Score + signal4Score + signal5Score
+activeSignals = (signal1Active ? 1 : 0) + (signal2Active ? 1 : 0) + (signal3Active ? 1 : 0) + (signal4Active ? 1 : 0) + (signal5Active ? 1 : 0)
+currentBias = totalScore > 0 ? "目前偏多" : totalScore < 0 ? "目前偏空" : "中性觀察"
+currentColor = signalColor(totalScore > 0 ? 1 : totalScore < 0 ? -1 : 0)
+
+plot(totalScore, "8zz Reverse Score", color=currentColor, linewidth=2, style=plot.style_stepline, display=display.status_line)
+
+var table summaryTable = table.new(position.top_right, 1, 4, border_width=1)
+if barstate.islast
+    table.cell(summaryTable, 0, 0, showSummary ? "8zz TradingView 指標" : "", bgcolor=showSummary ? color.new(color.black, 0) : color.new(color.black, 100), text_color=color.white)
+    table.cell(summaryTable, 0, 1, showSummary ? ("目前訊號：" + currentBias) : "", bgcolor=showSummary ? color.new(currentColor, 10) : color.new(color.black, 100), text_color=color.white)
+    table.cell(summaryTable, 0, 2, showSummary ? ("啟用中的觀察窗：" + str.tostring(activeSignals) + "\n分數：" + str.tostring(totalScore)) : "", bgcolor=showSummary ? color.new(color.black, 15) : color.new(color.black, 100), text_color=color.white)
+    table.cell(summaryTable, 0, 3, showSummary ? "把貼文時間手動填入輸入欄。\n正分 = 偏多，負分 = 偏空。" : "", bgcolor=showSummary ? color.new(color.black, 15) : color.new(color.black, 100), text_color=color.white)
+
+alertcondition(signal1Triggered, "8zz 訊號 1 觸發", "8zz 訊號 1 已在圖表上觸發")
+alertcondition(signal2Triggered, "8zz 訊號 2 觸發", "8zz 訊號 2 已在圖表上觸發")
+alertcondition(signal3Triggered, "8zz 訊號 3 觸發", "8zz 訊號 3 已在圖表上觸發")
+alertcondition(signal4Triggered, "8zz 訊號 4 觸發", "8zz 訊號 4 已在圖表上觸發")
+alertcondition(signal5Triggered, "8zz 訊號 5 觸發", "8zz 訊號 5 已在圖表上觸發")
