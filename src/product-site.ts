@@ -79,6 +79,14 @@ export interface TargetPageRecord {
   };
 }
 
+export interface SignalFilterPageRecord {
+  slug: string;
+  title: string;
+  description: string;
+  count: number;
+  signals: SignalBatchRecord[];
+}
+
 export interface ProductSiteData {
   generatedAt: string;
   summary: {
@@ -89,6 +97,7 @@ export interface ProductSiteData {
     trades: number;
   };
   latestSignals: SignalBatchRecord[];
+  signalFilters: SignalFilterPageRecord[];
   targets: TargetPageRecord[];
   scoreboard: {
     overall: TargetBacktestStats[];
@@ -292,6 +301,57 @@ function renderSignalCard(signal: SignalBatchRecord): string {
   </article>`;
 }
 
+function buildSignalFilters(signals: SignalBatchRecord[]): SignalFilterPageRecord[] {
+  const definitions = [
+    {
+      slug: 'high-confidence',
+      title: '高信心訊號',
+      description: '優先收錄至少一個高信心標的提及的訊號，適合先看最值得驗證的批次。',
+      match: (signal: SignalBatchRecord) => signal.mentions.some((mention) => mention.confidenceScore >= 3),
+    },
+    {
+      slug: 'long',
+      title: '偏多訊號',
+      description: '集中整理反指標偏多、較可能對應上漲或反彈敘事的訊號。',
+      match: (signal: SignalBatchRecord) => signal.mentions.some((mention) => mention.direction === 'long'),
+    },
+    {
+      slug: 'short',
+      title: '偏空訊號',
+      description: '集中整理反指標偏空、較可能對應下跌或回檔敘事的訊號。',
+      match: (signal: SignalBatchRecord) => signal.mentions.some((mention) => mention.direction === 'short'),
+    },
+    {
+      slug: 'threads',
+      title: 'Threads 訊號',
+      description: '只看有 Threads 貼文來源的訊號批次，方便區分不同平台的訊號語氣。',
+      match: (signal: SignalBatchRecord) => signal.sourceBreakdown.threads > 0,
+    },
+    {
+      slug: 'facebook',
+      title: 'Facebook 訊號',
+      description: '只看有 Facebook 貼文來源的訊號批次，方便區分不同平台的訊號語氣。',
+      match: (signal: SignalBatchRecord) => signal.sourceBreakdown.facebook > 0,
+    },
+  ] satisfies Array<{
+    slug: string;
+    title: string;
+    description: string;
+    match: (signal: SignalBatchRecord) => boolean;
+  }>;
+
+  return definitions.map((definition) => {
+    const filteredSignals = signals.filter(definition.match);
+    return {
+      slug: definition.slug,
+      title: definition.title,
+      description: definition.description,
+      count: filteredSignals.length,
+      signals: filteredSignals,
+    };
+  });
+}
+
 function renderLookaheadTable(rows: TargetBacktestStats[]): string {
   if (rows.length === 0) {
     return '<p class="muted">尚無足夠回測資料。</p>';
@@ -388,6 +448,7 @@ function computeBacktestRows(
 
 function buildSiteData(reportArchives: ReportArchiveRecord[], backtestArchives: BacktestReport[]): ProductSiteData {
   const latestSignals = buildSignalBatches(reportArchives);
+  const signalFilters = buildSignalFilters(latestSignals);
   const targetMap = new Map<string, AggregatedTarget>();
   const overallLookahead = new Map<number, { wins: number; losses: number; flats: number; returns: number[] }>();
   const actionMap = new Map<string, { action: string; tradeCount: number; wins: number; losses: number; returns: number[] }>();
@@ -522,6 +583,7 @@ function buildSiteData(reportArchives: ReportArchiveRecord[], backtestArchives: 
       trades: tradeCount,
     },
     latestSignals,
+    signalFilters,
     targets,
     scoreboard: {
       overall: computeBacktestRows(overallLookahead),
@@ -592,6 +654,20 @@ function renderHomePage(data: ProductSiteData): string {
       <p><a href="/signals/index.html">查看完整訊號 archive →</a></p>
     </section>
     <section class="card">
+      <h2>快速篩選入口</h2>
+      <div class="grid">
+        ${data.signalFilters
+          .map(
+            (filter) => `<article class="mini-card">
+              <h3><a href="/signals/${filter.slug}.html">${escapeHtml(filter.title)}</a></h3>
+              <p class="muted">${escapeHtml(filter.description)}</p>
+              <p>目前共有 <strong>${filter.count}</strong> 批訊號。</p>
+            </article>`,
+          )
+          .join('')}
+      </div>
+    </section>
+    <section class="card">
       <h2>最值得先看的標的</h2>
       ${data.targets.length
         ? `<table>
@@ -631,6 +707,20 @@ function renderSignalsIndexPage(data: ProductSiteData): string {
     '8zz 訊號 Archive',
     '把每一次 report 都變成可回看、可搜尋、可引用的訊號頁，讓單次通知變成歷史資產。',
     `<section class="card">
+      <h2>常用篩選</h2>
+      <div class="grid">
+        ${data.signalFilters
+          .map(
+            (filter) => `<article class="mini-card">
+              <h3><a href="/signals/${filter.slug}.html">${escapeHtml(filter.title)}</a></h3>
+              <p class="muted">${escapeHtml(filter.description)}</p>
+              <p>共有 ${filter.count} 批訊號。</p>
+            </article>`,
+          )
+          .join('')}
+      </div>
+    </section>
+    <section class="card">
       <h2>全部訊號批次</h2>
       <p class="muted">這裡收錄每一批已存檔的訊號，方便回頭驗證摘要、原文、原因、信心與可投資標的。</p>
       <div class="signal-list">
@@ -640,6 +730,35 @@ function renderSignalsIndexPage(data: ProductSiteData): string {
       </div>
     </section>`,
     { canonicalPath: '/signals/index.html' },
+  );
+}
+
+function renderSignalFilterPage(filter: SignalFilterPageRecord): string {
+  return renderLayout(
+    `${filter.title}｜8zz 訊號彙整`,
+    filter.description,
+    `<section class="hero">
+      <p>${escapeHtml(filter.description)}</p>
+      <div class="metrics">
+        <div class="metric"><span class="muted">符合條件訊號</span><strong>${filter.count}</strong></div>
+      </div>
+    </section>
+    <section class="card">
+      <p><a href="/signals/index.html">← 回到全部訊號彙整</a></p>
+      <div class="signal-list">
+        ${filter.signals.length ? filter.signals.map(renderSignalCard).join('') : '<p class="muted">目前沒有符合這個條件的訊號。</p>'}
+      </div>
+    </section>`,
+    {
+      canonicalPath: `/signals/${filter.slug}.html`,
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: filter.title,
+        description: filter.description,
+        inLanguage: 'zh-Hant',
+      },
+    },
   );
 }
 
@@ -965,6 +1084,7 @@ function writeProductData(data: ProductSiteData, outputDir: string): void {
   mkdirSync(dataDir, { recursive: true });
   writeFileSync(join(dataDir, 'catalog.json'), JSON.stringify(data, null, 2), 'utf-8');
   writeFileSync(join(dataDir, 'signals.json'), JSON.stringify(data.latestSignals, null, 2), 'utf-8');
+  writeFileSync(join(dataDir, 'signal-filters.json'), JSON.stringify(data.signalFilters, null, 2), 'utf-8');
   writeFileSync(join(dataDir, 'targets.json'), JSON.stringify(data.targets, null, 2), 'utf-8');
   writeFileSync(join(dataDir, 'scoreboard.json'), JSON.stringify(data.scoreboard, null, 2), 'utf-8');
 }
@@ -977,6 +1097,7 @@ function writeSeoFiles(data: ProductSiteData, outputDir: string): void {
     '/methodology/index.html',
     '/faq/index.html',
     '/targets/index.html',
+    ...data.signalFilters.map((filter) => `/signals/${filter.slug}.html`),
     ...data.latestSignals.map((signal) => `/signals/${signal.id}.html`),
     ...data.targets.map((target) => `/targets/${target.slug}.html`),
   ];
@@ -1025,6 +1146,9 @@ export function buildProductSite(dataDir = join(process.cwd(), 'data'), outputDi
   writeProductData(data, outputDir);
   writeFileSync(join(outputDir, 'index.html'), renderHomePage(data), 'utf-8');
   writeFileSync(join(outputDir, 'signals', 'index.html'), renderSignalsIndexPage(data), 'utf-8');
+  for (const filter of data.signalFilters) {
+    writeFileSync(join(outputDir, 'signals', `${filter.slug}.html`), renderSignalFilterPage(filter), 'utf-8');
+  }
   writeFileSync(join(outputDir, 'scoreboard', 'index.html'), renderScoreboardPage(data), 'utf-8');
   writeFileSync(join(outputDir, 'methodology', 'index.html'), renderMethodologyPage(data), 'utf-8');
   writeFileSync(join(outputDir, 'faq', 'index.html'), renderFaqPage(), 'utf-8');

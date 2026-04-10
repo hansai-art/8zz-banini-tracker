@@ -108,12 +108,17 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     assert.equal(siteData.summary.investableSignals, 1);
     assert.equal(siteData.summary.trackedTargets, 1);
     assert.equal(siteData.summary.trades, 1);
+    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'high-confidence')?.count, 1);
+    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'long')?.count, 1);
+    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'facebook')?.count, 0);
     assert.equal(siteData.targets[0]?.name, '台積電');
     assert.equal(siteData.targets[0]?.backtest.tradeCount, 1);
 
     assert.equal(existsSync(join(siteDir, 'data', 'catalog.json')), true);
     assert.equal(existsSync(join(siteDir, 'data', 'signals.json')), true);
+    assert.equal(existsSync(join(siteDir, 'data', 'signal-filters.json')), true);
     assert.equal(existsSync(join(siteDir, 'signals', 'index.html')), true);
+    assert.equal(existsSync(join(siteDir, 'signals', 'high-confidence.html')), true);
     assert.equal(existsSync(join(siteDir, 'signals', `${signalId}.html`)), true);
     assert.equal(existsSync(join(siteDir, 'targets', `${targetSlug}.html`)), true);
     assert.equal(existsSync(join(siteDir, 'sitemap.xml')), true);
@@ -125,11 +130,19 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
     assert.match(homePage, /訊號中心/);
     assert.match(homePage, /台積電停損後可能反彈/);
+    assert.match(homePage, /快速篩選入口/);
+    assert.match(homePage, /high-confidence\.html/);
     assert.match(homePage, /signals\/index\.html/);
 
     const signalsIndex = readFileSync(join(siteDir, 'signals', 'index.html'), 'utf-8');
     assert.match(signalsIndex, /訊號 Archive/);
+    assert.match(signalsIndex, /常用篩選/);
     assert.match(signalsIndex, /查看完整訊號頁/);
+
+    const highConfidencePage = readFileSync(join(siteDir, 'signals', 'high-confidence.html'), 'utf-8');
+    assert.match(highConfidencePage, /高信心訊號/);
+    assert.match(highConfidencePage, /符合條件訊號/);
+    assert.match(highConfidencePage, /signal-/);
 
     const signalDetailPage = readFileSync(join(siteDir, 'signals', `${signalId}.html`), 'utf-8');
     assert.match(signalDetailPage, /可行動建議/);
@@ -142,6 +155,7 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     assert.match(targetPage, new RegExp(`/signals/${signalId}\\.html`));
 
     const sitemap = readFileSync(join(siteDir, 'sitemap.xml'), 'utf-8');
+    assert.equal(sitemap.includes('/signals/high-confidence.html'), true);
     assert.equal(sitemap.includes(`/signals/${signalId}.html`), true);
     assert.equal(sitemap.includes(`/targets/${targetSlug}.html`), true);
   });
@@ -153,12 +167,14 @@ test('buildProductSite still emits placeholder pages without archived data', () 
 
     assert.equal(siteData.summary.signalBatches, 0);
     assert.equal(siteData.summary.trackedTargets, 0);
+    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'high-confidence')?.count, 0);
 
     const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
     assert.match(homePage, /尚未產生任何 report-\*\.json 檔案/);
     assert.equal(existsSync(join(siteDir, 'robots.txt')), true);
     assert.equal(existsSync(join(siteDir, 'faq', 'index.html')), true);
     assert.equal(existsSync(join(siteDir, 'signals', 'index.html')), true);
+    assert.equal(existsSync(join(siteDir, 'signals', 'high-confidence.html')), true);
   });
 });
 

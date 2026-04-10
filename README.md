@@ -95,6 +95,7 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 
 - **訊號中心**：把 `report-*.json` 變成可查詢的結構化訊號資產
 - **訊號 archive / detail 頁**：每一批訊號都有自己的詳情頁，能回看原文預覽、提及標的、方向、信心與建議
+- **訊號篩選頁**：額外產出高信心 / 偏多 / 偏空 / Threads / Facebook 等彙整頁，方便快速切入
 - **標的頁**：每個標的累積歷史提及、herAction、方向與高信心次數
 - **命中展示頁**：把 `backtest-*.json` 整理成回測摘要、熱門標的與 herAction 輪廓
 - **SEO / GEO 載體**：首頁、方法論、FAQ、標的頁、sitemap、robots
@@ -115,6 +116,7 @@ site/
   targets/*.html
   data/catalog.json
   data/signals.json
+  data/signal-filters.json
   data/targets.json
   data/scoreboard.json
   sitemap.xml
@@ -137,6 +139,7 @@ SITE_ORIGIN=https://your-domain.example npm run build:site
 
 - 讓通知結果能沉澱成產品資產，而不只是一次性訊息
 - 讓新使用者先從首頁 / FAQ / 方法論理解玩法
+- 讓使用者可以先從高信心、偏多 / 偏空、平台來源等入口快速切進去
 - 讓使用者可以先查自己的標的，再決定要不要看完整報告
 - 讓搜尋引擎與 AI 搜尋有可以引用的實體頁面
 
