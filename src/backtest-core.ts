@@ -474,9 +474,10 @@ export async function runBacktest(options: BacktestOptions): Promise<BacktestRep
         continue;
       }
 
+      const postDate = new Date(post.timestamp);
       const maxLookahead = Math.max(...options.lookaheadDays, ...DEFAULT_LOOKAHEAD_DAYS);
-      const priceEndDate = new Date(endDate.getTime());
-      const priceStartDate = new Date(new Date(post.timestamp).getTime() - 10 * 24 * 60 * 60 * 1000);
+      const priceStartDate = new Date(postDate.getTime() - 10 * 24 * 60 * 60 * 1000);
+      const priceEndDate = new Date(postDate.getTime());
       priceEndDate.setDate(priceEndDate.getDate() + maxLookahead + 10);
       const prices = await marketDataClient.loadPrices(security, priceStartDate, priceEndDate);
 
