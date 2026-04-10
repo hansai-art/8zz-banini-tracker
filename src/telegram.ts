@@ -1,3 +1,5 @@
+export { formatTelegramReport as formatReport } from './report.js';
+
 const API_BASE = 'https://api.telegram.org/bot';
 
 export interface TelegramConfig {
