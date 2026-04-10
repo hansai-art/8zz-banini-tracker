@@ -8,6 +8,7 @@
     "dry": "tsx src/index.ts --dry",
     "market": "tsx src/index.ts --fb-only --max-posts=1",
     "evening": "tsx src/index.ts --max-posts=3",
+    "backtest": "tsx src/backtest.ts",
     "cron": "tsx src/index.ts --cron",
     "test": "node --import tsx --test",
     "test:coverage": "node --import tsx --test --experimental-test-coverage",
