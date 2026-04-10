@@ -6,6 +6,7 @@ import type { BacktestReport } from './backtest-core.js';
 type SourceType = 'threads' | 'facebook';
 type SignalDirection = 'long' | 'short' | 'neutral';
 const MAX_POST_PREVIEW_LENGTH = 120;
+const SITE_ORIGIN = 'https://8zz-banini-tracker.local';
 
 export interface ArchivedPostRecord {
   id?: string;
@@ -145,7 +146,7 @@ function inferDirection(reverseView: string): SignalDirection {
 }
 
 function buildTargetSlug(name: string): string {
-  return encodeURIComponent(normalizeWhitespace(name).toLowerCase().replace(/\s+/g, '-'));
+  return encodeURIComponent(normalizeWhitespace(name).replace(/\s+/g, '-'));
 }
 
 function safeReadJson<T>(path: string): T | null {
@@ -173,13 +174,21 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function escapeJsonLd(value: Record<string, unknown>): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/<\/script/gi, '<\\/script');
+}
+
 function renderLayout(
   title: string,
   description: string,
   content: string,
   options?: { canonicalPath?: string; jsonLd?: Record<string, unknown> | Record<string, unknown>[] },
 ): string {
-  const canonical = options?.canonicalPath ? `https://8zz-banini-tracker.local${options.canonicalPath}` : null;
+  const canonical = options?.canonicalPath ? `${SITE_ORIGIN}${options.canonicalPath}` : null;
   const jsonLdItems = Array.isArray(options?.jsonLd) ? options?.jsonLd : options?.jsonLd ? [options.jsonLd] : [];
   return `<!doctype html>
 <html lang="zh-Hant">
@@ -235,7 +244,7 @@ function renderLayout(
     .footer-note { color: var(--muted); font-size: 0.95rem; padding-bottom: 48px; }
   </style>
   ${jsonLdItems
-    .map((item) => `<script type="application/ld+json">${JSON.stringify(item)}</script>`)
+    .map((item) => `<script type="application/ld+json">${escapeJsonLd(item)}</script>`)
     .join('\n  ')}
 </head>
 <body>
@@ -857,14 +866,14 @@ function writeSeoFiles(data: ProductSiteData, outputDir: string): void {
     '/targets/index.html',
     ...data.targets.map((target) => `/targets/${target.slug}.html`),
   ];
-  writeFileSync(join(outputDir, 'robots.txt'), 'User-agent: *\nAllow: /\nSitemap: https://8zz-banini-tracker.local/sitemap.xml\n', 'utf-8');
+  writeFileSync(join(outputDir, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`, 'utf-8');
   writeFileSync(
     join(outputDir, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
   .map(
-    (url) => `  <url><loc>https://8zz-banini-tracker.local${url}</loc><lastmod>${data.generatedAt}</lastmod></url>`,
+    (url) => `  <url><loc>${SITE_ORIGIN}${url}</loc><lastmod>${data.generatedAt}</lastmod></url>`,
   )
   .join('\n')}
 </urlset>`,
