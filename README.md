@@ -89,14 +89,14 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 
 ## 提交新增功能回原作者
 
-如果你是從原作者專案延伸開發，建議**不要直接把整個 fork 硬 merge 回去**，而是先把新增功能整理成幾個主題後，再送到原作者 repo。
+如果你是從原作者專案延伸開發，建議這次直接整理成**一個單一 upstream PR**，但只帶 fork 額外增加的能力，不要夾帶對原作者既有功能的刪除或回退。
 
 ### 建議流程
 
 1. 把原作者 repo 加成 `upstream`
 2. 先抓原作者最新分支
 3. 以原作者最新版本開新分支
-4. 只挑這個 fork 額外增加的功能逐批提交
+4. 只保留這個 fork 額外增加的功能與文件
 5. 最後對原作者 repo 開 Pull Request
 
 ```bash
@@ -105,36 +105,37 @@ git fetch upstream
 git checkout -b feat/threads-support upstream/master
 ```
 
-> 原作者的預設分支可能是 `main`、`master` 或其他名稱；請先用 `git remote show upstream` 確認 upstream 的實際預設分支，再替換上面的 `upstream/master`。例如輸出裡如果看到 `HEAD branch: master`，就代表應該用 `upstream/master`；如果看到 `HEAD branch: main`，就改成 `upstream/main`。上面的 `feat/threads-support` 也只是示例，實際 branch 名稱請改成你要提交的功能主題。
+> 原作者的預設分支可能是 `main`、`master` 或其他名稱；請先用 `git remote show upstream` 確認 upstream 的實際預設分支，再替換上面的 `upstream/master`。例如輸出裡如果看到 `HEAD branch: master`，就代表應該用 `upstream/master`；如果看到 `HEAD branch: main`，就改成 `upstream/main`。上面的 `feat/threads-support` 也只是示例，實際 branch 名稱請改成你要送出的單一 PR 主題。
 
 如果你沒有原作者 repo 的寫入權限，請直接從自己的 fork 對原作者開 PR；如果你有寫入權限，也仍然建議先走 branch + PR，不要直接推主分支。
 
-### 建議拆成哪些提交主題
+### 單一 PR 建議納入哪些檔案
 
-依照目前這個 fork 相對原作者的差異，建議至少拆成下面幾組：
+依照目前這個 fork 相對原作者的差異，建議一次納入下面這批直接相關的新增能力：
 
-1. **Threads 抓取與測試**
-   - `src/threads.ts`
-   - `src/index.ts`
-   - `test/threads.test.ts`
+- `src/threads.ts`
+- `src/facebook.ts`
+- `src/analyze.ts`
+- `src/report.ts`
+- `src/telegram.ts`
+- `src/discord.ts`
+- `src/line.ts`
+- `src/index.ts`
+- `test/threads.test.ts`
+- `test/facebook.test.ts`
+- `test/analyze.test.ts`
+- `test/telegram.test.ts`
+- `tradingview/banini-reverse-indicator.pine`
+- `README.md` 中對應的新功能說明
 
-2. **多平台通知與報告格式**
-   - `src/report.ts`
-   - `src/discord.ts`
-   - `src/line.ts`
-   - `src/telegram.ts`
-   - `test/telegram.test.ts`
+其中 `src/index.ts` 建議保留目前這份整合版流程，包含：
 
-3. **分析 / Facebook / 執行流程調整**
-   - `src/analyze.ts`
-   - `src/facebook.ts`
-   - `src/index.ts`
-   - `test/analyze.test.ts`
-   - `test/facebook.test.ts`
-
-4. **TradingView 指標與使用說明**
-   - `tradingview/banini-reverse-indicator.pine`
-   - `README.md` 相關章節
+- Threads + Facebook 雙來源匯流
+- OCR 文字一起送分析
+- 分析失敗 fallback
+- 多平台通知串接
+- 報告存檔流程
+- cron / 手動模式的整合執行邏輯
 
 ### 哪些內容不要直接帶回去
 
@@ -147,15 +148,26 @@ git checkout -b feat/threads-support upstream/master
 
 如果你的目標是「把新增功能整理後提交到原作者」，建議**不要把這些刪除一起送出**，避免 PR 變成在回退原作者既有能力。比較穩的做法是保留原作者既有結構，只把你新增的功能、測試、文件補進去。
 
+另外也建議不要把下面這些內容混進這次單一 PR：
+
+- 任何刪掉 upstream 既有功能的變更
+- Docker / CLI / CI / release / LICENSE 類的回退或移除
+- 與這次功能無關的結構性重整
+
 ### PR 說明建議
+
+單一 upstream PR 可以直接使用這個標題：
+
+`feat: add multi-source Banini tracking, analysis, notifications, and TradingView guide`
 
 開 PR 時可以直接寫清楚：
 
-- 這批變更是參考 `hansai-art/8zz-banini-tracker`
+- 這個 PR 整理自 `hansai-art/8zz-banini-tracker`
 - 本次只提交 fork 額外增加的功能
-- 不包含回退原作者既有的 Docker / CLI / CI 設定
+- 包含 Threads / Facebook 抓取、LLM 分析、多平台通知、TradingView 指標與對應測試
+- 不包含回退原作者既有的 Docker / CLI / CI / release 結構
 
-這樣原作者比較容易 review，也比較容易逐批合併。
+這樣可以一次完成推送，同時把 PR 範圍維持在「新增能力」本身，降低 review 時被視為回退 upstream 功能的風險。
 
 ## TradingView 指標
 
