@@ -75,7 +75,7 @@ npm run build            # TypeScript 編譯
 npm run start            # 啟動常駐排程
 ```
 
-預設常駐模式會使用台北時間每 5 分鐘檢查一次 Threads + Facebook；只要抓到新貼文，就會立刻推送到你有設定的通知管道。
+
 
 你也可以自行調整：
 
