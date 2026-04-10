@@ -1,5 +1,7 @@
 import type { BaniniAnalysis } from './analyze.js';
 
+const EMPTY_POST_TEXT = '（無文字，可能是圖片貼文）';
+
 export interface PostSummary {
   source: 'threads' | 'facebook';
   timestamp: string;
@@ -19,7 +21,7 @@ function escapeHtml(text: string): string {
 
 function shortenText(text: string, maxLen: number): string {
   const normalized = text.replace(/\n/g, ' ').trim();
-  if (!normalized) return '（無文字，可能是圖片貼文）';
+  if (!normalized) return EMPTY_POST_TEXT;
   return normalized.length > maxLen ? `${normalized.slice(0, maxLen)}…` : normalized;
 }
 

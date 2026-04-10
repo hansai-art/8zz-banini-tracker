@@ -24,6 +24,8 @@ const THREADS_USERNAME = 'banini31';
 const FB_PAGE_URL = 'https://www.facebook.com/DieWithoutBang/';
 const DATA_DIR = join(process.cwd(), 'data');
 const STATE_FILE = join(DATA_DIR, 'seen.json');
+const IMAGE_ONLY_SUMMARY = '偵測到新貼文，但目前只有圖片或沒有可分析文字，請直接點連結查看原文。';
+const AI_FAILED_SUMMARY = '偵測到新貼文，但 AI 分析暫時失敗，請直接點連結查看原文。';
 
 const isCronMode = process.argv.includes('--cron');
 
@@ -38,7 +40,7 @@ function intEnv(key: string, fallback: number): number {
   if (!raw) return fallback;
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed) || parsed <= 0) {
-    throw new Error(`Invalid env ${key}: ${raw}`);
+    throw new Error(`Invalid env ${key}: expected integer greater than zero, got ${raw}`);
   }
   return parsed;
 }
@@ -220,7 +222,7 @@ async function runInner(opts: RunOptions) {
     console.log('所有新貼文都是純圖片，改用純通知模式');
     analysis = {
       hasInvestmentContent: false,
-      summary: '偵測到新貼文，但目前只有圖片或沒有可分析文字，請直接點連結查看原文。',
+      summary: IMAGE_ONLY_SUMMARY,
     };
   } else {
     try {
@@ -233,7 +235,7 @@ async function runInner(opts: RunOptions) {
       console.error(`[AI] 分析失敗，改送原文通知: ${err instanceof Error ? err.message : err}`);
       analysis = {
         hasInvestmentContent: false,
-        summary: '偵測到新貼文，但 AI 分析暫時失敗，請直接點連結查看原文。',
+        summary: AI_FAILED_SUMMARY,
       };
     }
   }
