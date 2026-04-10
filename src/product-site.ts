@@ -5,6 +5,7 @@ import type { BacktestReport } from './backtest-core.js';
 
 type SourceType = 'threads' | 'facebook';
 type SignalDirection = 'long' | 'short' | 'neutral';
+const MAX_POST_PREVIEW_LENGTH = 120;
 
 export interface ArchivedPostRecord {
   id?: string;
@@ -327,7 +328,7 @@ function buildSignalBatches(reportArchives: ReportArchiveRecord[]): SignalBatchR
       source: post.source,
       timestamp: post.timestamp,
       url: post.url,
-      preview: shorten(post.text || post.ocrText || '', 120),
+      preview: shorten(post.text || post.ocrText || '', MAX_POST_PREVIEW_LENGTH),
     })),
     mentions: (record.analysis.mentionedTargets ?? []).map((target) => ({
       slug: buildTargetSlug(target.name),

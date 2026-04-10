@@ -127,7 +127,7 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     assert.match(targetPage, /停損賣出/);
 
     const sitemap = readFileSync(join(siteDir, 'sitemap.xml'), 'utf-8');
-    assert.match(sitemap, new RegExp(targetSlug.replace(/%/g, '%')));
+    assert.equal(sitemap.includes(`/targets/${targetSlug}.html`), true);
   });
 });
 
