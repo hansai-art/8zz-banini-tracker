@@ -179,7 +179,7 @@ function escapeJsonLd(value: Record<string, unknown>): string {
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026')
-    .replace(/<\/script/gi, '<\\/script');
+    .replace(/<\/script>/gi, '<\\/script>');
 }
 
 function renderLayout(
