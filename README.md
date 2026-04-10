@@ -94,6 +94,7 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 這個 repo 現在除了原本的 CLI / 通知流程，還會把既有資料自動整理成一批靜態頁面，補上：
 
 - **訊號中心**：把 `report-*.json` 變成可查詢的結構化訊號資產
+- **訊號 archive / detail 頁**：每一批訊號都有自己的詳情頁，能回看原文預覽、提及標的、方向、信心與建議
 - **標的頁**：每個標的累積歷史提及、herAction、方向與高信心次數
 - **命中展示頁**：把 `backtest-*.json` 整理成回測摘要、熱門標的與 herAction 輪廓
 - **SEO / GEO 載體**：首頁、方法論、FAQ、標的頁、sitemap、robots
@@ -105,12 +106,15 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 ```text
 site/
   index.html
+  signals/index.html
+  signals/*.html
   scoreboard/index.html
   methodology/index.html
   faq/index.html
   targets/index.html
   targets/*.html
   data/catalog.json
+  data/signals.json
   data/targets.json
   data/scoreboard.json
   sitemap.xml

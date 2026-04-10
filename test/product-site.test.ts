@@ -102,6 +102,7 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
 
     const siteData = buildProductSite(dataDir, siteDir);
     const targetSlug = encodeURIComponent('台積電');
+    const signalId = siteData.latestSignals[0]?.id;
 
     assert.equal(siteData.summary.signalBatches, 1);
     assert.equal(siteData.summary.investableSignals, 1);
@@ -111,6 +112,9 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     assert.equal(siteData.targets[0]?.backtest.tradeCount, 1);
 
     assert.equal(existsSync(join(siteDir, 'data', 'catalog.json')), true);
+    assert.equal(existsSync(join(siteDir, 'data', 'signals.json')), true);
+    assert.equal(existsSync(join(siteDir, 'signals', 'index.html')), true);
+    assert.equal(existsSync(join(siteDir, 'signals', `${signalId}.html`)), true);
     assert.equal(existsSync(join(siteDir, 'targets', `${targetSlug}.html`)), true);
     assert.equal(existsSync(join(siteDir, 'sitemap.xml')), true);
 
@@ -121,12 +125,24 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
     assert.match(homePage, /訊號中心/);
     assert.match(homePage, /台積電停損後可能反彈/);
+    assert.match(homePage, /signals\/index\.html/);
+
+    const signalsIndex = readFileSync(join(siteDir, 'signals', 'index.html'), 'utf-8');
+    assert.match(signalsIndex, /訊號 Archive/);
+    assert.match(signalsIndex, /查看完整訊號頁/);
+
+    const signalDetailPage = readFileSync(join(siteDir, 'signals', `${signalId}.html`), 'utf-8');
+    assert.match(signalDetailPage, /可行動建議/);
+    assert.match(signalDetailPage, /原文預覽/);
+    assert.match(signalDetailPage, /站回短線均線/);
 
     const targetPage = readFileSync(join(siteDir, 'targets', `${targetSlug}.html`), 'utf-8');
     assert.match(targetPage, /回測摘要/);
     assert.match(targetPage, /停損賣出/);
+    assert.match(targetPage, new RegExp(`/signals/${signalId}\\.html`));
 
     const sitemap = readFileSync(join(siteDir, 'sitemap.xml'), 'utf-8');
+    assert.equal(sitemap.includes(`/signals/${signalId}.html`), true);
     assert.equal(sitemap.includes(`/targets/${targetSlug}.html`), true);
   });
 });
@@ -142,5 +158,20 @@ test('buildProductSite still emits placeholder pages without archived data', () 
     assert.match(homePage, /尚未產生任何 report-\*\.json 檔案/);
     assert.equal(existsSync(join(siteDir, 'robots.txt')), true);
     assert.equal(existsSync(join(siteDir, 'faq', 'index.html')), true);
+    assert.equal(existsSync(join(siteDir, 'signals', 'index.html')), true);
+  });
+});
+
+test('buildProductSite removes stale generated signal and target pages', () => {
+  withTempDirs(({ dataDir, siteDir }) => {
+    mkdirSync(join(siteDir, 'signals'), { recursive: true });
+    mkdirSync(join(siteDir, 'targets'), { recursive: true });
+    writeFileSync(join(siteDir, 'signals', 'old-signal.html'), 'stale', 'utf-8');
+    writeFileSync(join(siteDir, 'targets', 'old-target.html'), 'stale', 'utf-8');
+
+    buildProductSite(dataDir, siteDir);
+
+    assert.equal(existsSync(join(siteDir, 'signals', 'old-signal.html')), false);
+    assert.equal(existsSync(join(siteDir, 'targets', 'old-target.html')), false);
   });
 });

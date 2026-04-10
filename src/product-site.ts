@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { BaniniAnalysis } from './analyze.js';
 import type { BacktestReport } from './backtest-core.js';
@@ -72,7 +72,7 @@ export interface TargetPageRecord {
   latestSignalAt: string;
   actions: string[];
   directions: SignalDirection[];
-  recentMentions: Array<SignalMentionRecord & { generatedAt: string; summary: string }>;
+  recentMentions: Array<SignalMentionRecord & { generatedAt: string; summary: string; signalId: string }>;
   backtest: {
     tradeCount: number;
     byLookahead: TargetBacktestStats[];
@@ -117,7 +117,7 @@ interface AggregatedTarget {
   latestSignalAt: string;
   actions: Set<string>;
   directions: Set<SignalDirection>;
-  recentMentions: Array<SignalMentionRecord & { generatedAt: string; summary: string }>;
+  recentMentions: Array<SignalMentionRecord & { generatedAt: string; summary: string; signalId: string }>;
   backtestByLookahead: Map<number, { wins: number; losses: number; flats: number; returns: number[] }>;
   tradeCount: number;
 }
@@ -143,6 +143,11 @@ function inferDirection(reverseView: string): SignalDirection {
   if (/(上漲|反彈|續漲|走高|偏多|看多|做多|噴|漲)/.test(reverseView)) return 'long';
   if (/(下跌|續跌|走低|偏空|看空|做空|回檔|跌)/.test(reverseView)) return 'short';
   return 'neutral';
+}
+
+function buildSignalId(timestamp: string, index: number): string {
+  const normalizedTimestamp = timestamp.replace(/[^0-9A-Za-z]+/g, '-').replace(/^-+|-+$/g, '');
+  return `signal-${normalizedTimestamp || 'unknown'}-${index}`;
 }
 
 function buildTargetSlug(name: string): string {
@@ -257,6 +262,7 @@ function renderLayout(
     <p class="muted">${escapeHtml(description)}</p>
     <nav>
       <a href="/index.html">首頁</a>
+      <a href="/signals/index.html">訊號 archive</a>
       <a href="/scoreboard/index.html">命中展示</a>
       <a href="/methodology/index.html">方法論</a>
       <a href="/faq/index.html">FAQ</a>
@@ -274,7 +280,7 @@ function renderLayout(
 function renderSignalCard(signal: SignalBatchRecord): string {
   return `<article class="signal-item">
     <div class="eyebrow">${escapeHtml(signal.generatedAt)}</div>
-    <h3>${escapeHtml(signal.summary)}</h3>
+    <h3><a href="/signals/${signal.id}.html">${escapeHtml(signal.summary)}</a></h3>
     <p class="muted">來源：Threads ${signal.sourceBreakdown.threads} 篇 / Facebook ${signal.sourceBreakdown.facebook} 篇</p>
     ${signal.mentions.length
       ? `<p>${signal.mentions
@@ -282,6 +288,7 @@ function renderSignalCard(signal: SignalBatchRecord): string {
           .map((mention) => `<span class="tag">${escapeHtml(mention.name)}｜${escapeHtml(mention.reverseView)}｜${escapeHtml(mention.confidence)}</span>`)
           .join('')}</p>`
       : '<p class="muted">這批貼文未形成可投資標的。</p>'}
+    <p><a href="/signals/${signal.id}.html">查看完整訊號頁 →</a></p>
   </article>`;
 }
 
@@ -324,7 +331,7 @@ function listBacktestArchives(dataDir: string): BacktestReport[] {
 
 function buildSignalBatches(reportArchives: ReportArchiveRecord[]): SignalBatchRecord[] {
   return reportArchives.map((record, index) => ({
-    id: `signal-${record.timestamp}-${index}`,
+    id: buildSignalId(record.timestamp, index),
     generatedAt: record.timestamp,
     summary: record.analysis.summary,
     hasInvestmentContent: record.analysis.hasInvestmentContent,
@@ -406,7 +413,12 @@ function buildSiteData(reportArchives: ReportArchiveRecord[], backtestArchives: 
       if (signal.generatedAt > existing.latestSignalAt) existing.latestSignalAt = signal.generatedAt;
       existing.actions.add(mention.herAction);
       existing.directions.add(mention.direction);
-      existing.recentMentions.push({ ...mention, generatedAt: signal.generatedAt, summary: signal.summary });
+      existing.recentMentions.push({
+        ...mention,
+        generatedAt: signal.generatedAt,
+        summary: signal.summary,
+        signalId: signal.id,
+      });
       existing.recentMentions.sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
       existing.recentMentions = existing.recentMentions.slice(0, 8);
       targetMap.set(mention.slug, existing);
@@ -509,7 +521,7 @@ function buildSiteData(reportArchives: ReportArchiveRecord[], backtestArchives: 
       backtests: backtestArchives.length,
       trades: tradeCount,
     },
-    latestSignals: latestSignals.slice(0, 20),
+    latestSignals,
     targets,
     scoreboard: {
       overall: computeBacktestRows(overallLookahead),
@@ -577,6 +589,7 @@ function renderHomePage(data: ProductSiteData): string {
       <div class="signal-list">
         ${data.latestSignals.length ? data.latestSignals.slice(0, 8).map(renderSignalCard).join('') : '<p class="muted">尚未產生任何 report-*.json 檔案。</p>'}
       </div>
+      <p><a href="/signals/index.html">查看完整訊號 archive →</a></p>
     </section>
     <section class="card">
       <h2>最值得先看的標的</h2>
@@ -610,6 +623,23 @@ function renderHomePage(data: ProductSiteData): string {
         inLanguage: 'zh-Hant',
       },
     },
+  );
+}
+
+function renderSignalsIndexPage(data: ProductSiteData): string {
+  return renderLayout(
+    '8zz 訊號 Archive',
+    '把每一次 report 都變成可回看、可搜尋、可引用的訊號頁，讓單次通知變成歷史資產。',
+    `<section class="card">
+      <h2>全部訊號批次</h2>
+      <p class="muted">這裡收錄每一批已存檔的訊號，方便回頭驗證摘要、原文、原因、信心與可投資標的。</p>
+      <div class="signal-list">
+        ${data.latestSignals.length
+          ? data.latestSignals.map(renderSignalCard).join('')
+          : '<p class="muted">尚未產生任何訊號 archive。</p>'}
+      </div>
+    </section>`,
+    { canonicalPath: '/signals/index.html' },
   );
 }
 
@@ -840,7 +870,7 @@ function renderTargetPage(target: TargetPageRecord): string {
             .map(
               (mention) => `<article class="signal-item">
                 <div class="eyebrow">${escapeHtml(mention.generatedAt)}</div>
-                <h3>${escapeHtml(mention.summary)}</h3>
+                <h3><a href="/signals/${mention.signalId}.html">${escapeHtml(mention.summary)}</a></h3>
                 <p><span class="tag">${escapeHtml(mention.herAction)}</span><span class="tag">${escapeHtml(mention.reverseView)}</span><span class="tag">${escapeHtml(mention.confidence)}</span></p>
                 <p class="muted">${escapeHtml(mention.reasoning || '無額外原因說明')}</p>
               </article>`,
@@ -852,10 +882,89 @@ function renderTargetPage(target: TargetPageRecord): string {
   );
 }
 
+function renderSignalDetailPage(signal: SignalBatchRecord): string {
+  const mentionsSummary = signal.mentions.length
+    ? signal.mentions
+        .map((mention) => `${mention.name} ${mention.reverseView}（${mention.confidence}）`)
+        .join('、')
+    : '這批貼文沒有形成可投資訊號';
+  return renderLayout(
+    `${signal.summary}｜8zz 訊號詳情`,
+    `${signal.generatedAt} 的 8zz 訊號詳情頁，整理摘要、原文預覽、提及標的、方向、信心與可行動建議。`,
+    `<section class="hero">
+      <p>這頁把單次通知拆開來看：不只看 summary，也能回頭確認當時提到哪些標的、為什麼判成這個方向，以及當下建議怎麼觀察。</p>
+      <div class="metrics">
+        <div class="metric"><span class="muted">訊號時間</span><strong style="font-size:1rem">${escapeHtml(signal.generatedAt)}</strong></div>
+        <div class="metric"><span class="muted">提及標的</span><strong>${signal.mentions.length}</strong></div>
+        <div class="metric"><span class="muted">Threads / FB</span><strong>${signal.sourceBreakdown.threads} / ${signal.sourceBreakdown.facebook}</strong></div>
+        <div class="metric"><span class="muted">Mood score</span><strong>${signal.moodScore ?? '—'}</strong></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>結論</h2>
+      <p>${escapeHtml(signal.summary)}</p>
+      ${signal.actionableSuggestion ? `<h3>可行動建議</h3><p>${escapeHtml(signal.actionableSuggestion)}</p>` : ''}
+      ${signal.chainAnalysis ? `<h3>脈絡判讀</h3><p>${escapeHtml(signal.chainAnalysis)}</p>` : ''}
+    </section>
+    <section class="grid">
+      <div class="card">
+        <h2>提及標的</h2>
+        ${signal.mentions.length
+          ? signal.mentions
+              .map(
+                (mention) => `<article class="signal-item">
+                  <h3><a href="/targets/${mention.slug}.html">${escapeHtml(mention.name)}</a></h3>
+                  <p><span class="tag">${escapeHtml(mention.type)}</span><span class="tag">${escapeHtml(mention.herAction)}</span><span class="tag">${escapeHtml(mention.reverseView)}</span><span class="tag">${escapeHtml(mention.confidence)}</span></p>
+                  <p class="muted">${escapeHtml(mention.reasoning || '無額外原因說明')}</p>
+                </article>`,
+              )
+              .join('')
+          : '<p class="muted">這批貼文未形成可投資訊號。</p>'}
+      </div>
+      <div class="card">
+        <h2>可引用摘要</h2>
+        <p>${escapeHtml(mentionsSummary)}</p>
+        <p class="muted">適合用在 SEO / GEO 場景：這頁提供明確的時間、標的、方向、信心與方法論上下文。</p>
+      </div>
+    </section>
+    <section class="card">
+      <h2>原文預覽</h2>
+      ${signal.posts.length
+        ? `<table>
+            <thead><tr><th>來源</th><th>時間</th><th>內容</th><th>連結</th></tr></thead>
+            <tbody>
+              ${signal.posts
+                .map(
+                  (post) => `<tr>
+                    <td>${escapeHtml(post.source)}</td>
+                    <td>${escapeHtml(post.timestamp)}</td>
+                    <td>${escapeHtml(post.preview)}</td>
+                    <td><a href="${escapeHtml(post.url)}">原文</a></td>
+                  </tr>`,
+                )
+                .join('')}
+            </tbody>
+          </table>`
+        : '<p class="muted">尚無原文預覽。</p>'}
+    </section>`,
+    {
+      canonicalPath: `/signals/${signal.id}.html`,
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: signal.summary,
+        description: `${signal.generatedAt} 的 8zz 訊號詳情頁`,
+        datePublished: signal.generatedAt,
+      },
+    },
+  );
+}
+
 function writeProductData(data: ProductSiteData, outputDir: string): void {
   const dataDir = join(outputDir, 'data');
   mkdirSync(dataDir, { recursive: true });
   writeFileSync(join(dataDir, 'catalog.json'), JSON.stringify(data, null, 2), 'utf-8');
+  writeFileSync(join(dataDir, 'signals.json'), JSON.stringify(data.latestSignals, null, 2), 'utf-8');
   writeFileSync(join(dataDir, 'targets.json'), JSON.stringify(data.targets, null, 2), 'utf-8');
   writeFileSync(join(dataDir, 'scoreboard.json'), JSON.stringify(data.scoreboard, null, 2), 'utf-8');
 }
@@ -863,10 +972,12 @@ function writeProductData(data: ProductSiteData, outputDir: string): void {
 function writeSeoFiles(data: ProductSiteData, outputDir: string): void {
   const urls = [
     '/index.html',
+    '/signals/index.html',
     '/scoreboard/index.html',
     '/methodology/index.html',
     '/faq/index.html',
     '/targets/index.html',
+    ...data.latestSignals.map((signal) => `/signals/${signal.id}.html`),
     ...data.targets.map((target) => `/targets/${target.slug}.html`),
   ];
   writeFileSync(join(outputDir, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`, 'utf-8');
@@ -888,23 +999,39 @@ function ensureDir(path: string): void {
   mkdirSync(path, { recursive: true });
 }
 
+function clearGeneratedHtmlFiles(path: string): void {
+  if (!existsSync(path)) return;
+  for (const entry of readdirSync(path)) {
+    if (entry.endsWith('.html') && entry !== 'index.html') {
+      unlinkSync(join(path, entry));
+    }
+  }
+}
+
 export function buildProductSite(dataDir = join(process.cwd(), 'data'), outputDir = join(process.cwd(), 'site')): ProductSiteData {
   const reportArchives = listReportArchives(dataDir);
   const backtestArchives = listBacktestArchives(dataDir);
   const data = buildSiteData(reportArchives, backtestArchives);
 
   ensureDir(outputDir);
+  ensureDir(join(outputDir, 'signals'));
   ensureDir(join(outputDir, 'scoreboard'));
   ensureDir(join(outputDir, 'methodology'));
   ensureDir(join(outputDir, 'faq'));
   ensureDir(join(outputDir, 'targets'));
+  clearGeneratedHtmlFiles(join(outputDir, 'signals'));
+  clearGeneratedHtmlFiles(join(outputDir, 'targets'));
 
   writeProductData(data, outputDir);
   writeFileSync(join(outputDir, 'index.html'), renderHomePage(data), 'utf-8');
+  writeFileSync(join(outputDir, 'signals', 'index.html'), renderSignalsIndexPage(data), 'utf-8');
   writeFileSync(join(outputDir, 'scoreboard', 'index.html'), renderScoreboardPage(data), 'utf-8');
   writeFileSync(join(outputDir, 'methodology', 'index.html'), renderMethodologyPage(data), 'utf-8');
   writeFileSync(join(outputDir, 'faq', 'index.html'), renderFaqPage(), 'utf-8');
   writeFileSync(join(outputDir, 'targets', 'index.html'), renderTargetsIndexPage(data), 'utf-8');
+  for (const signal of data.latestSignals) {
+    writeFileSync(join(outputDir, 'signals', `${signal.id}.html`), renderSignalDetailPage(signal), 'utf-8');
+  }
   for (const target of data.targets) {
     writeFileSync(join(outputDir, 'targets', `${target.slug}.html`), renderTargetPage(target), 'utf-8');
   }
