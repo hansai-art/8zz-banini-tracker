@@ -432,7 +432,7 @@ function buildSiteData(reportArchives: ReportArchiveRecord[], backtestArchives: 
       };
       target.tradeCount += 1;
       target.actions.add(trade.herAction);
-      target.directions.add(trade.signalDirection === 'long' ? 'long' : 'short');
+      target.directions.add(trade.signalDirection);
       if (trade.postTimestamp > target.latestSignalAt) target.latestSignalAt = trade.postTimestamp;
 
       for (const result of trade.results) {
