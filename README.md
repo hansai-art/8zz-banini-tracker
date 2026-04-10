@@ -67,6 +67,7 @@ npm run dev              # Threads + FB 各 3 篇，AI 分析 + 通知
 npm run dry              # 只抓取，不呼叫 LLM（測試用）
 npm run market           # 盤中模式：FB only, 1 篇
 npm run evening          # 盤後模式：Threads + FB, 各 3 篇
+npm run backtest         # 回測過去一年貼文，計算 1/3/5 天勝率
 ```
 
 ### 常駐排程（部署用）
@@ -86,6 +87,45 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 ```
 
 > 注意：輪詢越頻繁，Apify 與 LLM 成本就越高；想省錢就把 `REALTIME_CRON` 拉長一點。
+
+## 指標回測
+
+如果你想看「巴逆逆點名後幾天到底有沒有反著走」，現在可以直接跑回測：
+
+```bash
+npm run backtest
+```
+
+預設行為：
+
+- 抓 Threads + Facebook 過去一年內、各最多 300 篇貼文
+- 逐篇用 LLM 辨識她提到的個股 / ETF 與反指標方向
+- 用台股日線資料計算貼文後第 1 / 3 / 5 個交易日的漲跌
+- 依照反指標方向統計勝 / 負 / 平與勝率
+- 將完整明細存成 `data/backtest-*.json`
+
+你也可以調整參數：
+
+```bash
+npm run backtest -- --days=365 --max-posts=500 --lookahead=1,3,5,10
+npm run backtest -- --fb-only
+npm run backtest -- --threads-only
+```
+
+### 回測規則
+
+- 只回測 LLM 明確判定有投資內容、且能對應到台股個股 / ETF 的標的
+- 進場基準使用「貼文發布後的下一個交易日收盤價」，避免吃到當天已經發生的價格
+- 勝負定義：
+  - 反指標偏多、之後上漲 = 勝
+  - 反指標偏空、之後下跌 = 勝
+  - 報酬剛好 0% 會記為平手，不算進勝率分母
+
+### 注意
+
+- 回測需要 `APIFY_TOKEN` 與 LLM API 設定
+- LLM 成本會明顯高於即時追蹤，因為回測會逐篇分析歷史貼文
+- 台股價格資料目前只計算能對應到上市 / 上櫃個股與 ETF 的標的；產業、原物料、指數不納入勝率
 
 ## 提交新增功能回原作者
 
