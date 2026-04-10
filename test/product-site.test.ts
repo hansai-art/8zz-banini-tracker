@@ -1,0 +1,146 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { buildProductSite } from '../src/product-site.ts';
+
+function withTempDirs(fn: (dirs: { rootDir: string; dataDir: string; siteDir: string }) => void): void {
+  const rootDir = mkdtempSync(join(tmpdir(), 'banini-product-site-'));
+  const dataDir = join(rootDir, 'data');
+  const siteDir = join(rootDir, 'site');
+  mkdirSync(dataDir, { recursive: true });
+  try {
+    fn({ rootDir, dataDir, siteDir });
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
+}
+
+test('buildProductSite generates structured catalog, target pages, and sitemap', () => {
+  withTempDirs(({ dataDir, siteDir }) => {
+    writeFileSync(
+      join(dataDir, 'report-2026-04-10T000000.json'),
+      JSON.stringify(
+        {
+          timestamp: '2026-04-10T00:00:00.000Z',
+          posts: [
+            {
+              id: 'threads-1',
+              source: 'threads',
+              text: '台積電又不行了，我先停損。',
+              ocrText: '',
+              timestamp: '2026-04-10T00:00:00.000Z',
+              url: 'https://example.com/post',
+            },
+          ],
+          analysis: {
+            hasInvestmentContent: true,
+            summary: '台積電停損後可能反彈。',
+            moodScore: 7,
+            chainAnalysis: '停損後市場賣壓可能告一段落。',
+            actionableSuggestion: '先觀察是否站回短線均線。',
+            mentionedTargets: [
+              {
+                name: '台積電',
+                type: '個股',
+                herAction: '停損賣出',
+                reverseView: '可能反彈',
+                confidence: '高',
+                reasoning: '停損通常代表情緒極端。',
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    );
+
+    writeFileSync(
+      join(dataDir, 'backtest-2026-04-10T000000.json'),
+      JSON.stringify(
+        {
+          generatedAt: '2026-04-10T00:00:00.000Z',
+          windowDays: 365,
+          fetchedPosts: 10,
+          analyzedPosts: 4,
+          skippedNonInvestmentPosts: 5,
+          skippedUnresolvedTargets: 1,
+          skippedInsufficientPriceData: 0,
+          lookaheadDays: [1, 3],
+          summary: [],
+          trades: [
+            {
+              postId: 'threads-1',
+              postTimestamp: '2026-04-10T00:00:00.000Z',
+              source: 'threads',
+              url: 'https://example.com/post',
+              targetName: '台積電',
+              targetType: '個股',
+              herAction: '停損賣出',
+              reverseView: '可能反彈',
+              confidence: '高',
+              signalDirection: 'long',
+              matchedSymbol: '2330',
+              matchedName: '台積電',
+              entryDate: '2026-04-11',
+              entryClose: 1000,
+              results: [
+                { lookaheadDays: 1, exitDate: '2026-04-12', exitClose: 1020, returnPct: 2, outcome: 'win' },
+                { lookaheadDays: 3, exitDate: '2026-04-14', exitClose: 980, returnPct: -2, outcome: 'loss' },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    );
+
+    const siteData = buildProductSite(dataDir, siteDir);
+    const targetSlug = encodeURIComponent('台積電');
+
+    assert.equal(siteData.summary.signalBatches, 1);
+    assert.equal(siteData.summary.investableSignals, 1);
+    assert.equal(siteData.summary.trackedTargets, 1);
+    assert.equal(siteData.summary.trades, 1);
+    assert.equal(siteData.targets[0]?.name, '台積電');
+    assert.equal(siteData.targets[0]?.backtest.tradeCount, 1);
+
+    assert.equal(existsSync(join(siteDir, 'data', 'catalog.json')), true);
+    assert.equal(existsSync(join(siteDir, 'targets', `${targetSlug}.html`)), true);
+    assert.equal(existsSync(join(siteDir, 'sitemap.xml')), true);
+
+    const catalog = readFileSync(join(siteDir, 'data', 'catalog.json'), 'utf-8');
+    assert.match(catalog, /台積電/);
+    assert.match(catalog, /停損賣出/);
+
+    const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
+    assert.match(homePage, /訊號中心/);
+    assert.match(homePage, /台積電停損後可能反彈/);
+
+    const targetPage = readFileSync(join(siteDir, 'targets', `${targetSlug}.html`), 'utf-8');
+    assert.match(targetPage, /回測摘要/);
+    assert.match(targetPage, /停損賣出/);
+
+    const sitemap = readFileSync(join(siteDir, 'sitemap.xml'), 'utf-8');
+    assert.match(sitemap, new RegExp(targetSlug.replace(/%/g, '%')));
+  });
+});
+
+test('buildProductSite still emits placeholder pages without archived data', () => {
+  withTempDirs(({ dataDir, siteDir }) => {
+    const siteData = buildProductSite(dataDir, siteDir);
+
+    assert.equal(siteData.summary.signalBatches, 0);
+    assert.equal(siteData.summary.trackedTargets, 0);
+
+    const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
+    assert.match(homePage, /尚未產生任何 report-\*\.json 檔案/);
+    assert.equal(existsSync(join(siteDir, 'robots.txt')), true);
+    assert.equal(existsSync(join(siteDir, 'faq', 'index.html')), true);
+  });
+});

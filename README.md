@@ -75,6 +75,7 @@ npm run backtest         # 回測過去一年貼文，計算 1/3/5 天勝率
 ```bash
 npm run build            # TypeScript 編譯
 npm run start            # 啟動常駐排程
+npm run build:site       # 重新產生靜態訊號中心 / 命中展示 / SEO 頁
 ```
 
 
@@ -87,6 +88,47 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 ```
 
 > 注意：輪詢越頻繁，Apify 與 LLM 成本就越高；想省錢就把 `REALTIME_CRON` 拉長一點。
+
+## 訊號中心 / 命中展示 / SEO 頁
+
+這個 repo 現在除了原本的 CLI / 通知流程，還會把既有資料自動整理成一批靜態頁面，補上：
+
+- **訊號中心**：把 `report-*.json` 變成可查詢的結構化訊號資產
+- **標的頁**：每個標的累積歷史提及、herAction、方向與高信心次數
+- **命中展示頁**：把 `backtest-*.json` 整理成回測摘要、熱門標的與 herAction 輪廓
+- **SEO / GEO 載體**：首頁、方法論、FAQ、標的頁、sitemap、robots
+
+### 輸出位置
+
+每次手動執行、排程執行、或回測結束後，系統都會順手更新：
+
+```text
+site/
+  index.html
+  scoreboard/index.html
+  methodology/index.html
+  faq/index.html
+  targets/index.html
+  targets/*.html
+  data/catalog.json
+  data/targets.json
+  data/scoreboard.json
+  sitemap.xml
+  robots.txt
+```
+
+如果你只是想用既有 `data/report-*.json`、`data/backtest-*.json` 重新產生頁面，也可以單獨跑：
+
+```bash
+npm run build:site
+```
+
+### 這批頁面是拿來做什麼的
+
+- 讓通知結果能沉澱成產品資產，而不只是一次性訊息
+- 讓新使用者先從首頁 / FAQ / 方法論理解玩法
+- 讓使用者可以先查自己的標的，再決定要不要看完整報告
+- 讓搜尋引擎與 AI 搜尋有可以引用的實體頁面
 
 ## 指標回測
 
