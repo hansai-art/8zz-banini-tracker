@@ -123,6 +123,12 @@ site/
 npm run build:site
 ```
 
+如果你要把 sitemap / canonical 指到自己的正式網域，可以在執行時補上：
+
+```bash
+SITE_ORIGIN=https://your-domain.example npm run build:site
+```
+
 ### 這批頁面是拿來做什麼的
 
 - 讓通知結果能沉澱成產品資產，而不只是一次性訊息

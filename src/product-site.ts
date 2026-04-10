@@ -6,7 +6,7 @@ import type { BacktestReport } from './backtest-core.js';
 type SourceType = 'threads' | 'facebook';
 type SignalDirection = 'long' | 'short' | 'neutral';
 const MAX_POST_PREVIEW_LENGTH = 120;
-const SITE_ORIGIN = 'https://8zz-banini-tracker.local';
+const SITE_ORIGIN = process.env.SITE_ORIGIN ?? 'https://example.com';
 
 export interface ArchivedPostRecord {
   id?: string;
@@ -189,7 +189,10 @@ function renderLayout(
   options?: { canonicalPath?: string; jsonLd?: Record<string, unknown> | Record<string, unknown>[] },
 ): string {
   const canonical = options?.canonicalPath ? `${SITE_ORIGIN}${options.canonicalPath}` : null;
-  const jsonLdItems = Array.isArray(options?.jsonLd) ? options?.jsonLd : options?.jsonLd ? [options.jsonLd] : [];
+  let jsonLdItems: Record<string, unknown>[] = [];
+  if (options?.jsonLd) {
+    jsonLdItems = Array.isArray(options.jsonLd) ? options.jsonLd : [options.jsonLd];
+  }
   return `<!doctype html>
 <html lang="zh-Hant">
 <head>
