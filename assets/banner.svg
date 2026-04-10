@@ -48,6 +48,6 @@
   <rect x="120" y="310" width="240" height="4" rx="2" fill="url(#accent)"/>
   <text x="120" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="#F0F6FC">banini-tracker</text>
   <text x="120" y="370" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#8B949E">追蹤反指標女神巴逆逆的社群貼文</text>
-  <text x="120" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#8B949E">AI 反指標分析 → Telegram 即時推送</text>
+  <text x="120" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#8B949E">AI 反指標分析 → TG / DC / LINE 即時推送</text>
   <text x="120" y="480" font-family="ui-monospace, monospace" font-size="20" fill="#6E7681">by @cablate</text>
 </svg>

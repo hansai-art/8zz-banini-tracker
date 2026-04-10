@@ -13,14 +13,19 @@ import { join } from 'path';
 import cron from 'node-cron';
 import { fetchThreadsPosts, type ThreadsPost } from './threads.js';
 import { fetchFacebookPosts, type FacebookPost } from './facebook.js';
-import { analyzePosts } from './analyze.js';
-import { sendTelegramMessage, formatReport } from './telegram.js';
+import { analyzePosts, type BaniniAnalysis } from './analyze.js';
+import { sendTelegramMessage } from './telegram.js';
+import { sendDiscordMessage } from './discord.js';
+import { sendLinePushMessage } from './line.js';
+import { formatPlainReport, formatTelegramReport, type PostSummary } from './report.js';
 
 // ── Config ──────────────────────────────────────────────────
 const THREADS_USERNAME = 'banini31';
 const FB_PAGE_URL = 'https://www.facebook.com/DieWithoutBang/';
 const DATA_DIR = join(process.cwd(), 'data');
 const STATE_FILE = join(DATA_DIR, 'seen.json');
+const IMAGE_ONLY_SUMMARY = '偵測到新貼文，但目前只有圖片或沒有可分析文字，請直接點連結查看原文。';
+const AI_FAILED_SUMMARY = '偵測到新貼文，但 AI 分析暫時失敗，請直接點連結查看原文。';
 
 const isCronMode = process.argv.includes('--cron');
 
@@ -28,6 +33,16 @@ function env(key: string, fallback?: string): string {
   const val = process.env[key] ?? fallback;
   if (!val) throw new Error(`Missing env: ${key}`);
   return val;
+}
+
+function intEnv(key: string, fallback: number): number {
+  const raw = process.env[key];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    throw new Error(`Invalid env ${key}: expected integer greater than zero, got ${raw}`);
+  }
+  return parsed;
 }
 
 // ── 統一貼文格式 ────────────────────────────────────────────
@@ -202,16 +217,28 @@ async function runInner(opts: RunOptions) {
       return { text: content, timestamp: localTime, isToday: isToday(p.timestamp) };
     });
 
+  let analysis: BaniniAnalysis;
   if (textsForAnalysis.length === 0) {
-    console.log('所有新貼文都是純圖片，跳過分析');
-    return;
+    console.log('所有新貼文都是純圖片，改用純通知模式');
+    analysis = {
+      hasInvestmentContent: false,
+      summary: IMAGE_ONLY_SUMMARY,
+    };
+  } else {
+    try {
+      analysis = await analyzePosts(textsForAnalysis, {
+        baseUrl: env('LLM_BASE_URL', 'https://api.deepinfra.com/v1/openai'),
+        apiKey: env('LLM_API_KEY'),
+        model: env('LLM_MODEL', 'MiniMaxAI/MiniMax-M2.5'),
+      });
+    } catch (err) {
+      console.error(`[AI] 分析失敗，改送原文通知: ${err instanceof Error ? err.message : err}`);
+      analysis = {
+        hasInvestmentContent: false,
+        summary: AI_FAILED_SUMMARY,
+      };
+    }
   }
-
-  const analysis = await analyzePosts(textsForAnalysis, {
-    baseUrl: env('LLM_BASE_URL', 'https://api.deepinfra.com/v1/openai'),
-    apiKey: env('LLM_API_KEY'),
-    model: env('LLM_MODEL', 'MiniMaxAI/MiniMax-M2.5'),
-  });
 
   // 6. 輸出結果
   console.log('========================================');
@@ -238,26 +265,67 @@ async function runInner(opts: RunOptions) {
 
   console.log('\n--- 僅供娛樂參考，不構成投資建議 ---\n');
 
-  // 7. Telegram 通知
+  // 7. 多平台通知
+  const postSummaries: PostSummary[] = newPosts.map((p) => ({
+    source: p.source,
+    timestamp: new Date(p.timestamp).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+    isToday: isToday(p.timestamp),
+    text: p.text || p.ocrText,
+    url: p.url,
+  }));
+  const telegramMsg = formatTelegramReport(analysis, { threads: threadCount, fb: fbCount }, postSummaries);
+  const plainMsg = formatPlainReport(analysis, { threads: threadCount, fb: fbCount }, postSummaries);
+
   const tgToken = process.env.TG_BOT_TOKEN;
   const tgChannelId = process.env.TG_CHANNEL_ID;
+  const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const lineChannelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const lineTo = process.env.LINE_TO;
+
+  const tasks: Array<{ name: string; send: () => Promise<void> }> = [];
 
   if (tgToken && tgChannelId) {
-    try {
-      const postSummaries = newPosts.map((p) => ({
-        source: p.source,
-        timestamp: new Date(p.timestamp).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
-        isToday: isToday(p.timestamp),
-        text: p.text.slice(0, 60),
-      }));
-      const msg = formatReport(analysis, { threads: threadCount, fb: fbCount }, postSummaries);
-      await sendTelegramMessage({ botToken: tgToken, channelId: tgChannelId }, msg);
-      console.log('[Telegram] 通知已發送');
-    } catch (err) {
-      console.error(`[Telegram] 發送失敗: ${err instanceof Error ? err.message : err}`);
-    }
+    tasks.push({
+      name: 'Telegram',
+      send: () => sendTelegramMessage({ botToken: tgToken, channelId: tgChannelId }, telegramMsg),
+    });
   } else {
     console.log('[Telegram] 未設定 TG_BOT_TOKEN / TG_CHANNEL_ID，跳過通知');
+  }
+
+  if (discordWebhookUrl) {
+    tasks.push({
+      name: 'Discord',
+      send: () => sendDiscordMessage({ webhookUrl: discordWebhookUrl }, plainMsg),
+    });
+  } else {
+    console.log('[Discord] 未設定 DISCORD_WEBHOOK_URL，跳過通知');
+  }
+
+  if (lineChannelAccessToken && lineTo) {
+    tasks.push({
+      name: 'LINE',
+      send: () => sendLinePushMessage({ channelAccessToken: lineChannelAccessToken, to: lineTo }, plainMsg),
+    });
+  } else {
+    console.log('[LINE] 未設定 LINE_CHANNEL_ACCESS_TOKEN / LINE_TO，跳過通知');
+  }
+
+  if (tasks.length === 0) {
+    console.log('[Notify] 沒有可用通知管道，跳過發送');
+  } else {
+    const results = await Promise.allSettled(
+      tasks.map(async (task) => {
+        await task.send();
+        console.log(`[${task.name}] 通知已發送`);
+      }),
+    );
+
+    for (const [idx, result] of results.entries()) {
+      if (result.status === 'rejected') {
+        console.error(`[${tasks[idx].name}] 發送失敗: ${result.reason instanceof Error ? result.reason.message : result.reason}`);
+      }
+    }
   }
 
   // 8. 存檔
@@ -269,27 +337,18 @@ async function runInner(opts: RunOptions) {
 
 // ── 入口 ────────────────────────────────────────────────────
 if (isCronMode) {
-  // 盤中：週一到五 09:00-13:30，每 30 分鐘，FB only 抓 1 篇
-  // cron 不支援半小時結束，用 9:00-13:00 每 30 分 + 13:30 單獨一個
-  cron.schedule('7,37 9-12 * * 1-5', () => {
-    run({ fbOnly: true, threadsOnly: false, maxPosts: 1, isDryRun: false, label: '盤中' })
-      .catch((err) => console.error('[盤中] 執行失敗:', err));
+  const realtimeCron = env('REALTIME_CRON', '*/5 * * * *');
+  const realtimeMaxPosts = intEnv('REALTIME_MAX_POSTS', 3);
+
+  cron.schedule(realtimeCron, () => {
+    run({ fbOnly: false, threadsOnly: false, maxPosts: realtimeMaxPosts, isDryRun: false, label: '即時追蹤' })
+      .catch((err) => console.error('[即時追蹤] 執行失敗:', err));
   }, { timezone: 'Asia/Taipei' });
 
-  cron.schedule('7 13 * * 1-5', () => {
-    run({ fbOnly: true, threadsOnly: false, maxPosts: 1, isDryRun: false, label: '盤中' })
-      .catch((err) => console.error('[盤中] 執行失敗:', err));
-  }, { timezone: 'Asia/Taipei' });
-
-  // 盤後：每天晚上 23:00，Threads + FB 各 3 篇
-  cron.schedule('3 23 * * *', () => {
-    run({ fbOnly: false, threadsOnly: false, maxPosts: 3, isDryRun: false, label: '盤後' })
-      .catch((err) => console.error('[盤後] 執行失敗:', err));
-  }, { timezone: 'Asia/Taipei' });
-
-  console.log('=== 巴逆逆排程已啟動 ===');
-  console.log('  盤中：週一~五 09:07/09:37/10:07/.../13:07（FB only, 1 篇）');
-  console.log('  盤後：每天 23:03（Threads + FB, 各 3 篇）');
+  console.log('=== 巴逆逆即時排程已啟動 ===');
+  console.log(`  排程：${realtimeCron}（台北時間）`);
+  console.log(`  來源：Threads + Facebook（每次各抓最多 ${realtimeMaxPosts} 篇）`);
+  console.log('  偵測到新貼文後會立刻推送到已設定的通知管道');
   console.log('  按 Ctrl+C 停止\n');
 
 } else {

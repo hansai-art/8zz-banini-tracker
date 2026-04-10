@@ -1,7 +1,7 @@
 {
   "name": "banini-tracker",
   "version": "0.1.0",
-  "description": "巴逆逆（8zz）Threads 反指標追蹤器",
+  "description": "巴逆逆（8zz）社群追蹤與多平台即時通知工具",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
