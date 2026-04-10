@@ -102,10 +102,10 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 ```bash
 git remote add upstream https://github.com/CabLate/banini-tracker.git
 git fetch upstream
-git checkout -b feat/upstream-sync upstream/master
+git checkout -b feat/threads-support upstream/master
 ```
 
-> 原作者的預設分支可能是 `main`、`master` 或其他名稱；請先用 `git remote show upstream` 確認 upstream 的實際預設分支，再替換上面的 `upstream/master`。
+> 原作者的預設分支可能是 `main`、`master` 或其他名稱；請先用 `git remote show upstream` 確認 upstream 的實際預設分支，再替換上面的 `upstream/master`。例如輸出裡如果看到 `HEAD branch: master`，就代表應該用 `upstream/master`；如果看到 `HEAD branch: main`，就改成 `upstream/main`。上面的 `feat/threads-support` 也只是示例，實際 branch 名稱請改成你要提交的功能主題。
 
 如果你沒有原作者 repo 的寫入權限，請直接從自己的 fork 對原作者開 PR；如果你有寫入權限，也仍然建議先走 branch + PR，不要直接推主分支。
 
