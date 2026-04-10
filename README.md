@@ -105,7 +105,7 @@ git fetch upstream
 git checkout -b feat/upstream-sync upstream/master
 ```
 
-> 如果原作者之後把預設分支從 `master` 改成 `main` 或其他名稱，請先用 `git branch -r` 確認 upstream 的實際分支名稱，再替換上面的 `upstream/master`。
+> 原作者的預設分支可能是 `main`、`master` 或其他名稱；請先用 `git branch -r` 確認 upstream 的實際分支名稱，再替換上面的 `upstream/master`。
 
 如果你沒有原作者 repo 的寫入權限，請直接從自己的 fork 對原作者開 PR；如果你有寫入權限，也仍然建議先走 branch + PR，不要直接推主分支。
 
