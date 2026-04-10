@@ -1,13 +1,4 @@
-/**
- * Telegram 通知模組
- * 使用 Bot API 直接發送，不需額外套件
- */
-
 const API_BASE = 'https://api.telegram.org/bot';
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 export interface TelegramConfig {
   botToken: string;
@@ -35,82 +26,4 @@ export async function sendTelegramMessage(
     const body = await res.text().catch(() => '');
     throw new Error(`Telegram 發送失敗: ${res.status} ${body.slice(0, 200)}`);
   }
-}
-
-interface PostSummary {
-  source: 'threads' | 'facebook';
-  timestamp: string;
-  isToday: boolean;
-  text: string;
-}
-
-export function formatReport(
-  analysis: {
-    summary: string;
-    hasInvestmentContent: boolean;
-    mentionedTargets?: {
-      name: string;
-      type: string;
-      herAction: string;
-      reverseView: string;
-      confidence: string;
-      reasoning: string;
-    }[];
-    chainAnalysis?: string;
-    actionableSuggestion?: string;
-    moodScore?: number;
-  },
-  postCount: { threads: number; fb: number },
-  posts: PostSummary[],
-): string {
-  const lines: string[] = [];
-  lines.push('<b>巴逆逆反指標速報</b>');
-  lines.push(`來源：Threads ${postCount.threads} 篇 / FB ${postCount.fb} 篇`);
-  lines.push('');
-
-  // 貼文時間軸
-  lines.push('<b>她的動態</b>');
-  for (const p of posts) {
-    const src = p.source === 'threads' ? 'TH' : 'FB';
-    const todayTag = p.isToday ? ' [今天]' : '';
-    const preview = escapeHtml(p.text.replace(/\n/g, ' ').slice(0, 50));
-    lines.push(`${src}${todayTag} ${p.timestamp}｜${preview}${p.text.length > 50 ? '…' : ''}`);
-  }
-
-  lines.push('');
-  lines.push(analysis.summary);
-
-  if (analysis.hasInvestmentContent) {
-    if (analysis.mentionedTargets?.length) {
-      lines.push('');
-      lines.push('<b>提及標的</b>');
-      for (const t of analysis.mentionedTargets) {
-        const arrow =
-          t.reverseView.includes('漲') || t.reverseView.includes('彈')
-            ? '↑'
-            : t.reverseView.includes('跌')
-              ? '↓'
-              : '→';
-        lines.push(`${arrow} <b>${t.name}</b>（${t.type}）`);
-        lines.push(`  她：${t.herAction} → 反指標：${t.reverseView} [${t.confidence}]`);
-        if (t.reasoning) lines.push(`  ${t.reasoning}`);
-      }
-    }
-    if (analysis.chainAnalysis) {
-      lines.push('');
-      lines.push(`<b>連鎖推導</b>\n${analysis.chainAnalysis}`);
-    }
-    if (analysis.actionableSuggestion) {
-      lines.push('');
-      lines.push(`<b>建議方向</b>\n${analysis.actionableSuggestion}`);
-    }
-    if (analysis.moodScore) {
-      lines.push(`\n冥燈指數：${analysis.moodScore}/10`);
-    }
-  } else {
-    lines.push('\n（本批貼文與投資無關）');
-  }
-
-  lines.push('\n<i>僅供娛樂參考，不構成投資建議</i>');
-  return lines.join('\n');
 }
