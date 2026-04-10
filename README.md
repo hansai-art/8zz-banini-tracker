@@ -36,8 +36,8 @@
 ## 安裝
 
 ```bash
-git clone https://github.com/CabLate/banini-tracker.git
-cd banini-tracker
+git clone https://github.com/hansai-art/8zz-banini-tracker.git
+cd 8zz-banini-tracker
 npm install
 cp .env.example .env
 ```
@@ -86,6 +86,74 @@ REALTIME_MAX_POSTS=5         # 每輪最多抓 5 篇，避免漏掉連發貼文
 ```
 
 > 注意：輪詢越頻繁，Apify 與 LLM 成本就越高；想省錢就把 `REALTIME_CRON` 拉長一點。
+
+## 提交新增功能回原作者
+
+如果你是從原作者專案延伸開發，建議**不要直接把整個 fork 硬 merge 回去**，而是先把新增功能整理成幾個主題後，再送到原作者 repo。
+
+### 建議流程
+
+1. 把原作者 repo 加成 `upstream`
+2. 先抓原作者最新分支
+3. 以原作者最新版本開新分支
+4. 只挑這個 fork 額外增加的功能逐批提交
+5. 最後對原作者 repo 開 Pull Request
+
+```bash
+git remote add upstream https://github.com/CabLate/banini-tracker.git
+git fetch upstream
+git checkout -b feat/upstream-sync upstream/master
+```
+
+如果你沒有原作者 repo 的寫入權限，請直接從自己的 fork 對原作者開 PR；如果你有寫入權限，也仍然建議先走 branch + PR，不要直接推主分支。
+
+### 建議拆成哪些提交主題
+
+依照目前這個 fork 相對原作者的差異，建議至少拆成下面幾組：
+
+1. **Threads 抓取與測試**
+   - `src/threads.ts`
+   - `src/index.ts`
+   - `test/threads.test.ts`
+
+2. **多平台通知與報告格式**
+   - `src/report.ts`
+   - `src/discord.ts`
+   - `src/line.ts`
+   - `src/telegram.ts`
+   - `test/telegram.test.ts`
+
+3. **分析 / Facebook / 執行流程調整**
+   - `src/analyze.ts`
+   - `src/facebook.ts`
+   - `src/index.ts`
+   - `test/analyze.test.ts`
+   - `test/facebook.test.ts`
+
+4. **TradingView 指標與使用說明**
+   - `tradingview/banini-reverse-indicator.pine`
+   - `README.md` 相關章節
+
+### 哪些內容不要直接帶回去
+
+這個 fork 目前相對原作者也包含一些**刪除原作者既有功能**的差異，例如：
+
+- Docker / `.dockerignore`
+- CLI 入口
+- CI / release workflow
+- LICENSE / skill 文件
+
+如果你的目標是「把新增功能整理後提交到原作者」，建議**不要把這些刪除一起送出**，避免 PR 變成在回退原作者既有能力。比較穩的做法是保留原作者既有結構，只把你新增的功能、測試、文件補進去。
+
+### PR 說明建議
+
+開 PR 時可以直接寫清楚：
+
+- 這批變更是參考 `hansai-art/8zz-banini-tracker`
+- 本次只提交 fork 額外增加的功能
+- 不包含回退原作者既有的 Docker / CLI / CI 設定
+
+這樣原作者比較容易 review，也比較容易逐批合併。
 
 ## TradingView 指標
 
@@ -294,8 +362,8 @@ tradingview/banini-reverse-indicator.pine
 如果你有安裝 Git：
 
 ```bash
-git clone https://github.com/CabLate/banini-tracker.git
-cd banini-tracker
+git clone https://github.com/hansai-art/8zz-banini-tracker.git
+cd 8zz-banini-tracker
 ```
 
 如果你沒有安裝 Git，也可以在 GitHub 頁面按 **Code → Download ZIP**，下載後解壓縮，再用終端機切到該資料夾。
