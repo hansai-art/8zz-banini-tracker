@@ -100,17 +100,57 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
       'utf-8',
     );
 
+    writeFileSync(
+      join(dataDir, 'report-2026-04-11T000000.json'),
+      JSON.stringify(
+        {
+          timestamp: '2026-04-11T00:00:00.000Z',
+          posts: [
+            {
+              id: 'facebook-1',
+              source: 'facebook',
+              text: '聯發科看起來不妙，我先賣一趟。',
+              ocrText: '',
+              timestamp: '2026-04-11T00:00:00.000Z',
+              url: 'https://example.com/facebook-post',
+            },
+          ],
+          analysis: {
+            hasInvestmentContent: true,
+            summary: '聯發科賣出後可能續跌。',
+            moodScore: 4,
+            chainAnalysis: '賣出後市場對高檔風險的預期可能持續發酵。',
+            actionableSuggestion: '留意是否跌破前低。',
+            mentionedTargets: [
+              {
+                name: '聯發科',
+                type: '個股',
+                herAction: '賣出',
+                reverseView: '可能續跌',
+                confidence: '中',
+                reasoning: '高檔賣出後通常反映情緒轉弱。',
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    );
+
     const siteData = buildProductSite(dataDir, siteDir);
     const targetSlug = encodeURIComponent('台積電');
-    const signalId = siteData.latestSignals[0]?.id;
+    const signalId = siteData.latestSignals.find((signal) => signal.summary.includes('台積電'))?.id;
 
-    assert.equal(siteData.summary.signalBatches, 1);
-    assert.equal(siteData.summary.investableSignals, 1);
-    assert.equal(siteData.summary.trackedTargets, 1);
+    assert.equal(siteData.summary.signalBatches, 2);
+    assert.equal(siteData.summary.investableSignals, 2);
+    assert.equal(siteData.summary.trackedTargets, 2);
     assert.equal(siteData.summary.trades, 1);
     assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'high-confidence')?.count, 1);
     assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'long')?.count, 1);
-    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'facebook')?.count, 0);
+    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'short')?.count, 1);
+    assert.equal(siteData.signalFilters.find((filter) => filter.slug === 'facebook')?.count, 1);
     assert.equal(siteData.targets[0]?.name, '台積電');
     assert.equal(siteData.targets[0]?.backtest.tradeCount, 1);
 
@@ -130,8 +170,13 @@ test('buildProductSite generates structured catalog, target pages, and sitemap',
     const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
     assert.match(homePage, /訊號中心/);
     assert.match(homePage, /台積電停損後可能反彈/);
+    assert.match(homePage, /聯發科賣出後可能續跌/);
     assert.match(homePage, /快速篩選入口/);
+    assert.match(homePage, /最新高信心訊號/);
+    assert.match(homePage, /最新偏多訊號/);
+    assert.match(homePage, /最新偏空訊號/);
     assert.match(homePage, /high-confidence\.html/);
+    assert.match(homePage, /short\.html/);
     assert.match(homePage, /signals\/index\.html/);
 
     const signalsIndex = readFileSync(join(siteDir, 'signals', 'index.html'), 'utf-8');
@@ -171,6 +216,9 @@ test('buildProductSite still emits placeholder pages without archived data', () 
 
     const homePage = readFileSync(join(siteDir, 'index.html'), 'utf-8');
     assert.match(homePage, /尚未產生任何 report-\*\.json 檔案/);
+    assert.match(homePage, /目前還沒有高信心訊號/);
+    assert.match(homePage, /目前還沒有偏多訊號/);
+    assert.match(homePage, /目前還沒有偏空訊號/);
     assert.equal(existsSync(join(siteDir, 'robots.txt')), true);
     assert.equal(existsSync(join(siteDir, 'faq', 'index.html')), true);
     assert.equal(existsSync(join(siteDir, 'signals', 'index.html')), true);

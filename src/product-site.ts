@@ -301,6 +301,23 @@ function renderSignalCard(signal: SignalBatchRecord): string {
   </article>`;
 }
 
+function findSignalFilter(data: ProductSiteData, slug: string): SignalFilterPageRecord | undefined {
+  return data.signalFilters.find((filter) => filter.slug === slug);
+}
+
+function renderCompactSignalList(signals: SignalBatchRecord[], emptyText: string): string {
+  if (signals.length === 0) {
+    return `<p class="muted">${escapeHtml(emptyText)}</p>`;
+  }
+  return `<ul>
+    ${signals
+      .map(
+        (signal) => `<li><a href="/signals/${signal.id}.html">${escapeHtml(signal.summary)}</a><div class="muted">${escapeHtml(signal.generatedAt)}</div></li>`,
+      )
+      .join('')}
+  </ul>`;
+}
+
 function buildSignalFilters(signals: SignalBatchRecord[]): SignalFilterPageRecord[] {
   const definitions = [
     {
@@ -616,6 +633,9 @@ function buildSiteData(reportArchives: ReportArchiveRecord[], backtestArchives: 
 
 function renderHomePage(data: ProductSiteData): string {
   const description = '把 8zz 社群貼文、AI 反指標判讀與回測紀錄整理成可驗證的事件驅動投資情報入口。';
+  const highConfidenceSignals = findSignalFilter(data, 'high-confidence');
+  const longSignals = findSignalFilter(data, 'long');
+  const shortSignals = findSignalFilter(data, 'short');
   return renderLayout(
     '8zz Banini Tracker｜訊號中心',
     description,
@@ -665,6 +685,26 @@ function renderHomePage(data: ProductSiteData): string {
             </article>`,
           )
           .join('')}
+      </div>
+    </section>
+    <section class="grid">
+      <div class="card">
+        <h2>最新高信心訊號</h2>
+        <p class="muted">先看至少一個高信心提及的批次，通常是最值得優先驗證的入口。</p>
+        ${renderCompactSignalList(highConfidenceSignals?.signals.slice(0, 3) ?? [], '目前還沒有高信心訊號。')}
+        <p><a href="/signals/high-confidence.html">查看全部高信心訊號 →</a></p>
+      </div>
+      <div class="card">
+        <h2>最新偏多訊號</h2>
+        <p class="muted">快速看近期比較偏向反彈 / 上漲敘事的訊號批次。</p>
+        ${renderCompactSignalList(longSignals?.signals.slice(0, 3) ?? [], '目前還沒有偏多訊號。')}
+        <p><a href="/signals/long.html">查看全部偏多訊號 →</a></p>
+      </div>
+      <div class="card">
+        <h2>最新偏空訊號</h2>
+        <p class="muted">快速看近期比較偏向回檔 / 下跌敘事的訊號批次。</p>
+        ${renderCompactSignalList(shortSignals?.signals.slice(0, 3) ?? [], '目前還沒有偏空訊號。')}
+        <p><a href="/signals/short.html">查看全部偏空訊號 →</a></p>
       </div>
     </section>
     <section class="card">
