@@ -18,6 +18,7 @@ import { sendTelegramMessage } from './telegram.js';
 import { sendDiscordMessage } from './discord.js';
 import { sendLinePushMessage } from './line.js';
 import { formatPlainReport, formatTelegramReport, type PostSummary } from './report.js';
+import { buildProductSite } from './product-site.js';
 
 // ── Config ──────────────────────────────────────────────────
 const THREADS_USERNAME = 'banini31';
@@ -333,6 +334,13 @@ async function runInner(opts: RunOptions) {
   const outFile = join(DATA_DIR, `report-${new Date().toISOString().slice(0, 19).replace(/:/g, '')}.json`);
   writeFileSync(outFile, JSON.stringify({ timestamp: new Date().toISOString(), posts: newPosts, analysis }, null, 2), 'utf-8');
   console.log(`結果已存檔: ${outFile}`);
+
+  try {
+    const siteData = buildProductSite(DATA_DIR);
+    console.log(`[Site] 靜態頁已更新：${siteData.summary.signalBatches} 批訊號 / ${siteData.summary.trackedTargets} 個標的`);
+  } catch (err) {
+    console.error(`[Site] 產生靜態頁失敗: ${err instanceof Error ? err.message : err}`);
+  }
 }
 
 // ── 入口 ────────────────────────────────────────────────────

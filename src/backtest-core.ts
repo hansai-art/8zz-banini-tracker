@@ -3,6 +3,7 @@ import { join } from 'path';
 import { analyzePosts, type BaniniAnalysis } from './analyze.js';
 import { fetchFacebookPosts } from './facebook.js';
 import { fetchThreadsPosts } from './threads.js';
+import { buildProductSite } from './product-site.js';
 
 const THREADS_USERNAME = 'banini31';
 const FB_PAGE_URL = 'https://www.facebook.com/DieWithoutBang/';
@@ -508,6 +509,13 @@ export async function runBacktest(options: BacktestOptions): Promise<BacktestRep
   const outputPath = join(DATA_DIR, `backtest-${new Date().toISOString().slice(0, 19).replace(/:/g, '')}.json`);
   writeFileSync(outputPath, JSON.stringify(report, null, 2), 'utf-8');
   console.log(`[Backtest] 結果已存檔: ${outputPath}`);
+
+  try {
+    const siteData = buildProductSite(DATA_DIR);
+    console.log(`[Site] 靜態頁已更新：${siteData.summary.trades} 筆回測交易 / ${siteData.summary.trackedTargets} 個標的`);
+  } catch (error) {
+    console.error(`[Site] 產生靜態頁失敗: ${error instanceof Error ? error.message : error}`);
+  }
 
   return report;
 }
